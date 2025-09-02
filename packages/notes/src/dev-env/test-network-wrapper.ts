@@ -4,10 +4,6 @@ import { createTestNotes } from '../test-notes'
 import { IntrospectWrapper } from './introspect-wrapper'
 import { TestLabeler } from './test-labeler'
 
-function ucfirst(str: string): string {
-  return str.charAt(0)?.toUpperCase() + str.slice(1)
-}
-
 /**
  * Extended TestNetwork that adds support for Notes service and Labeler
  * This wraps the original TestNetwork without modifying it
@@ -42,7 +38,6 @@ export class TestNetworkWrapper {
         bskyDb: network.bsky.db, // Pass the actual bsky database connection
         pdsUrl: network.pds.url, // Pass PDS URL for service account creation
       })
-      console.log(`🏷️ Test Labeler service started ${wrapper.labeler.url}`)
     }
 
     // Add notes service if requested and labeler exists
@@ -55,17 +50,10 @@ export class TestNetworkWrapper {
         labelerDid: wrapper.labeler.labelerDid,
         labelerUrl: wrapper.labeler.url,
       })
-      console.log(
-        `📝 Community Notes server started http://localhost:${wrapper.notes.port}`,
-      )
-      console.log(
-        `📝 Community Notes service DID ${wrapper.notes.serviceAccount.did}`,
-      )
     }
 
     // Ensure labeler DID is properly synced to Bsky
     if (wrapper.labeler) {
-      console.log(`🔧 Labeler DID created: ${wrapper.labeler.labelerDid}`)
       // Force Bsky to sync the labeler account from PDS
       try {
         await network.bsky.sub.processAll()
@@ -86,9 +74,6 @@ export class TestNetworkWrapper {
         wrapper.notes,
         wrapper.labeler,
       )
-      console.log(
-        `🔍 Enhanced introspection server started http://localhost:${wrapper.introspectWrapper.port}`,
-      )
     }
 
     return wrapper
@@ -107,41 +92,8 @@ export class TestNetworkWrapper {
     }
   }
 
-  // private async createMinimalMockSetup() {
-  //   // Create a few basic users without any assets
-  //   // const loggedOut = this.network.pds.getClient()
-
-  //   const users = [
-  //     { email: 'alice@test.com', handle: 'alice.test', password: 'hunter2' },
-  //     { email: 'bob@test.com', handle: 'bob.test', password: 'hunter2' },
-  //     { email: 'carla@test.com', handle: 'carla.test', password: 'hunter2' },
-  //   ]
-
-  //   for (const user of users) {
-  //     try {
-  //       const client = this.network.pds.getClient()
-  //       const result = await client.createAccount(user)
-  //       if (result.data.did && client.session) {
-  //         await client.app.bsky.actor.profile.create(
-  //           { repo: result.data.did },
-  //           {
-  //             displayName: user.handle.split('.')[0],
-  //             description: `Test user`,
-  //           },
-  //         )
-  //       }
-  //     } catch (error) {
-  //       console.log(
-  //         `⚠️ Failed to create user ${user.handle}:`,
-  //         (error as Error).message,
-  //       )
-  //     }
-  //   }
-  // }
-
   private async generateNotesMockSetup() {
     // Use the existing mock users created by generateMockSetup
-    console.log('📝 Creating Community Notes mock data using existing users')
 
     // Login as the existing mock users
     const userCredentials = [

@@ -56,11 +56,6 @@ const run = async () => {
   })
 
   // Log core services (notes and labeler already logged during creation)
-  if (network.network.introspect) {
-    console.log(
-      `🔍 Dev-env introspection server started http://localhost:${network.network.introspect.port}`,
-    )
-  }
   console.log(
     `👤 DID Placeholder server started http://localhost:${network.network.plc.port}`,
   )
@@ -76,26 +71,23 @@ const run = async () => {
   console.log(
     `🌅 Bsky Appview started http://localhost:${network.network.bsky.port}`,
   )
+  console.log(`🏷️ Test Labeler service started ${network.labeler!.url}`)
+  console.log(`🔧 Labeler DID: ${network.labeler!.labelerDid}`)
+  console.log(
+    `🔍 Enhanced introspection server started http://localhost:${network.introspectWrapper!.port}`,
+  )
+  console.log(
+    `📝 Community Notes server started http://localhost:${network.notes.port}`,
+  )
+  console.log(
+    `📝 Community Notes service DID ${network.notes.serviceAccount.did}`,
+  )
 
   // Generate mock data
   console.log('Generating mock setup')
   await network.generateMockSetupWrapper()
 
   console.log('✅ Dev environment ready')
-
-  //   console.log(`
-  // 🌐 Service URLs:
-  //   🔍 Introspection:    http://localhost:${network.network.introspect?.port || 'N/A'}
-  //   👤 PLC: http://localhost:${network.network.plc.port}
-  //   🌞 PDS: http://localhost:${network.network.pds.port}
-  //   🌅 BSKY: http://localhost:${network.network.bsky.port}
-  //   🗼 OZONE: http://localhost:${network.network.ozone.port}
-  //   📝 NOTES: http://localhost:${network.notes?.port || 'N/A'}
-  //   🔗 LABELER: ${network.labeler?.url || 'N/A'}
-  //   🗄️ DB: ${process.env.DB_POSTGRES_URL || 'postgresql://localhost:5432/postgres'}
-
-  // 🎭 Mock Data Setup:
-  //   ✅ Mock data setup complete`)
 }
 
 run().catch(console.error)
