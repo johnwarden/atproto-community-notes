@@ -32,13 +32,11 @@ export class TestNetworkWrapper {
     const wrapper = new TestNetworkWrapper(network)
 
     // Add labeler if requested
-    if (labeler) {
-      wrapper.labeler = await TestLabeler.create({
-        port: labeler.port,
-        bskyDb: network.bsky.db, // Pass the actual bsky database connection
-        pdsUrl: network.pds.url, // Pass PDS URL for service account creation
-      })
-    }
+    wrapper.labeler = await TestLabeler.create({
+      port: labeler.port,
+      bskyDb: network.bsky.db, // Pass the actual bsky database connection
+      pdsUrl: network.pds.url, // Pass PDS URL for service account creation
+    })
 
     // Add notes service if requested and labeler exists
     if (wrapper.labeler) {
@@ -50,17 +48,6 @@ export class TestNetworkWrapper {
         labelerDid: wrapper.labeler.labelerDid,
         labelerUrl: wrapper.labeler.url,
       })
-    }
-
-    // Ensure labeler DID is properly synced to Bsky
-    if (wrapper.labeler) {
-      // Force Bsky to sync the labeler account from PDS
-      try {
-        await network.bsky.sub.processAll()
-        console.log(`🔄 Synced labeler account to Bsky`)
-      } catch (error) {
-        console.error(`⚠️ Failed to sync labeler to Bsky:`, error)
-      }
     }
 
     // Create enhanced introspection server that includes notes and labeler info

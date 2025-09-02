@@ -36,14 +36,9 @@ describe('Label Hydration', () => {
     alicePostUri = testData.alicePostUri
     aliceProposalUri = testData.aliceProposalUri
 
-    process.stderr.write(`Alice post: ${testData.alicePostUri}`)
-    process.stderr.write(`Alice proposal: ${testData.aliceProposalUri}`)
-
     // Also create the original test data for backward compatibility
     testPostUri = alicePostUri
     proposalUri = aliceProposalUri
-
-    process.stderr.write(`Post urls: $alicePostUri, $aliceProposalUri\n`)
 
     assert.ok(
       testPostUri && proposalUri,
@@ -76,10 +71,6 @@ describe('Label Hydration', () => {
 
         if (response.ok) {
           const responseContent = await response.json()
-
-          process.stderr.write(
-            `Response from getPosts: ${JSON.stringify(responseContent)}\n`,
-          )
 
           assert.ok(
             !responseContent.error,
@@ -199,7 +190,7 @@ describe('Label Hydration', () => {
 
       if (attempt < maxAttempts) {
         process.stderr.write(`⏳ [DEBUG] Waiting before retry\n`)
-        await new Promise((resolve) => setTimeout(resolve, 1000))     
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
 
