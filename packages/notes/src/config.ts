@@ -13,7 +13,7 @@ export interface NotesServiceConfig {
   repoAccount: ServiceAccount // Repository account for all records
   feedGeneratorDid: string // Feed generator document DID (service host)
   pdsUrl: string // PDS URL for AT Protocol record creation
-  syncVotesToPds?: boolean // Enable syncing vote records to PDS
+  syncVotesToPds: boolean // Enable syncing vote records to PDS
   labeler: LabelerConfig // Labeler service configuration
 }
 
@@ -73,15 +73,15 @@ export interface DatabaseConfig {
 
 export interface ServiceAccountConfig {
   did: string
-  key?: string
-  password?: string
+  key: string
+  password: string
   // Removed userDid - using single DID approach
   // Removed JWT fields - using password authentication
 }
 
 export interface LabelerConfig {
   did: string
-  url?: string
+  url: string
 }
 
 export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
@@ -92,6 +92,10 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
 
   if (!env.labelerDid) {
     throw new Error('LABELER_DID environment variable is required')
+  }
+
+  if (!env.labelerUrl) {
+    throw new Error('LABELER_URL environment variable is required')
   }
 
   if (!env.pdsUrl) {
@@ -110,6 +114,10 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     throw new Error('INTERNAL_PORT environment variable is required')
   }
 
+  if (!env.repoAccountDid) {
+    throw new Error('REPO_DID environment variable is required')
+  }
+
   if (!env.repoAccountPassword) {
     throw new Error('REPO_PASSWORD environment variable is required')
   }
@@ -121,11 +129,11 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     pdsUrl: env.pdsUrl!,
     syncVotesToPds: env.syncVotesToPds ?? false,
     labeler: {
-      did: env.labelerDid ?? 'did:example:fallback', // Will be overridden by dev-env
-      url: env.labelerUrl, // Optional - for external labeler service
+      did: env.labelerDid,
+      url: env.labelerUrl,
     },
     repoAccount: {
-      did: env.repoAccountDid ?? 'did:plc:community-notes-repo',
+      did: env.repoAccountDid,
       key: env.repoAccountPrivateKey,
       password: env.repoAccountPassword,
     },

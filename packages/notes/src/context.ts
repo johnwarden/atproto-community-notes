@@ -13,7 +13,7 @@ export interface AppContext {
   repoAccount: ServiceAccount // Repository account for all records (proposals, votes, feed records)
   feedGeneratorDid?: string // Feed generator DID (for backward compatibility)
   pdsUrl: string // PDS URL for AT Protocol record creation
-  syncVotesToPds?: boolean // Enable syncing vote records to PDS
+  syncVotesToPds: boolean // Enable syncing vote records to PDS
   reqLabelers: () => Record<string, any>
   config: any // Configuration object to avoid circular imports
 }

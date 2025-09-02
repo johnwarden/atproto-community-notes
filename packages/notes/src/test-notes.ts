@@ -92,6 +92,7 @@ export class TestNotes {
         did: config.labelerDid,
         url: config.labelerUrl,
       },
+      syncVotesToPds: true,
     })
 
     await server.start()

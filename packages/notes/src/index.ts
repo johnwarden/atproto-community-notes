@@ -44,7 +44,7 @@ export class NotesService {
   public repoAccount: ServiceAccount
   public feedGeneratorDid: string
   public pdsUrl: string
-  public syncVotesToPds?: boolean
+  public syncVotesToPds: boolean
 
   constructor(private config: NotesServiceConfig) {
     this.repoAccount = config.repoAccount
