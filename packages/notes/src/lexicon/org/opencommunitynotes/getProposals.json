@@ -1,0 +1,217 @@
+{
+  "lexicon": 1,
+  "id": "org.opencommunitynotes.getProposals",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get proposals for multiple content URIs with optional filtering.",
+      "parameters": {
+        "type": "params",
+        "required": ["uris"],
+        "properties": {
+          "uris": {
+            "type": "array",
+            "maxLength": 100,
+            "minLength": 1,
+            "items": {
+              "type": "string"
+            },
+            "description": "Array of content URIs to get proposals for"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 10,
+            "description": "Maximum number of proposals to return"
+          },
+          "status": {
+            "type": "string",
+            "knownValues": [
+              "needs_more_ratings",
+              "rated_helpful",
+              "rated_not_helpful"
+            ],
+            "description": "Filter by proposal status"
+          },
+          "label": {
+            "type": "string",
+            "description": "Filter by label value (e.g., 'needs-context', 'misleading')"
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["proposals"],
+          "properties": {
+            "proposals": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "lex:org.opencommunitynotes.getProposals#proposalView"
+              }
+            }
+          }
+        }
+      }
+    },
+    "proposalView": {
+      "type": "object",
+      "required": [
+        "uri",
+        "cid",
+        "author",
+        "typ",
+        "targetUri",
+        "val",
+        "note",
+        "cts",
+        "status"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "The AT-URI of the social.pmsky.proposal record"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid",
+          "description": "The CID of the proposal record"
+        },
+        "author": {
+          "type": "ref",
+          "ref": "lex:org.opencommunitynotes.getProposals#proposalAuthor"
+        },
+        "typ": {
+          "type": "string",
+          "description": "The type of moderation action (e.g., 'label')"
+        },
+        "targetUri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "The AT-URI of the content this note applies to"
+        },
+        "val": {
+          "type": "string",
+          "description": "The label value (e.g., 'needs-context')"
+        },
+        "note": {
+          "type": "string",
+          "description": "The note text content"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "knownValues": [
+              "factual_error",
+              "altered_media",
+              "outdated_information",
+              "misrepresentation_or_missing_context",
+              "unverified_claim_as_fact",
+              "joke_or_satire",
+              "other"
+            ]
+          },
+          "description": "Reasons for the note"
+        },
+        "cts": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When the note was created (canonical timestamp)"
+        },
+        "status": {
+          "type": "string",
+          "knownValues": [
+            "needs_more_ratings",
+            "rated_helpful",
+            "rated_not_helpful"
+          ],
+          "description": "The current status of the note"
+        },
+        "viewer": {
+          "type": "ref",
+          "ref": "lex:org.opencommunitynotes.getProposals#proposalViewer",
+          "description": "Viewer-specific data if authenticated"
+        }
+      }
+    },
+    "proposalAuthor": {
+      "type": "object",
+      "required": ["aid", "pseudonym"],
+      "properties": {
+        "aid": {
+          "type": "string",
+          "description": "Anonymous ID of the note author"
+        },
+        "pseudonym": {
+          "type": "string",
+          "description": "Anonymous pseudonym for the author"
+        }
+      }
+    },
+    "proposalViewer": {
+      "type": "object",
+      "required": ["rating"],
+      "properties": {
+        "rating": {
+          "type": "ref",
+          "ref": "lex:org.opencommunitynotes.getProposals#viewerRating",
+          "description": "The viewer's rating of this note"
+        }
+      }
+    },
+    "viewerRating": {
+      "type": "object",
+      "required": ["val", "createdAt"],
+      "properties": {
+        "val": {
+          "type": "integer",
+          "description": "The rating value (+1, 0, -1)"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "knownValues": [
+              "cites_high_quality_sources",
+              "is_clear",
+              "addresses_claim",
+              "provides_important_context",
+              "is_unbiased",
+              "sources_missing_or_unreliable",
+              "sources_dont_support_note",
+              "is_incorrect",
+              "is_opinion_or_speculation",
+              "is_hard_to_understand",
+              "is_off_topic_or_irrelevant",
+              "is_argumentative_or_biased",
+              "note_not_needed",
+              "is_spam_harassment_or_abuse",
+              "other"
+            ]
+          },
+          "description": "Reasons for the rating"
+        },
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "AT-URI of the viewer rating record"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When the rating was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When the rating was last updated"
+        }
+      }
+    }
+  }
+}

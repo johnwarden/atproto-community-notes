@@ -1,0 +1,33 @@
+{
+  "name": "community-notes",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ]
+  },
+  "packageManager": "pnpm@8.15.9+sha512.499434c9d8fdd1a2794ebf4552b3b25c0a633abcee5bb15e7b5de90f32f47b513aca98cd5cfd001c31f0db454bc3804edccd578501e4ca293a6816166bbd9f81",
+  "scripts": {
+    "build": "pnpm run --sort --recursive --stream '/^(build|build:.+)$/'",
+    "codegen": "pnpm run --sort --recursive --stream --parallel codegen",
+    "test": "pnpm -r test",
+    "dev": "pnpm --filter notes start",
+    "test:notes": "pnpm --filter notes test"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.1.1",
+    "typescript": "^5.8.3",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.7.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-n": "^17.15.0",
+    "eslint-plugin-prettier": "^5.1.3",
+    "prettier": "^3.2.5",
+    "prettier-config-standard": "^7.0.0",
+    "prettier-plugin-tailwindcss": "^0.6.11"
+  }
+}

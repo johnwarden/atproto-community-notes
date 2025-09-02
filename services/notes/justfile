@@ -1,0 +1,156 @@
+# Community Notes Service Management Commands
+# Usage: just <command>
+
+set dotenv-load := true
+
+# Default recipe - show available commands
+default:
+    @just --list
+
+# Check environment variables (non-sensitive only)
+env:
+    @echo "🔧 Environment variables status:"
+    @echo "NODE_ENV: ${NODE_ENV:-'not set'}"
+    @echo "PORT: ${PORT:-'not set'}"
+    @echo "LOG_LEVEL: ${LOG_LEVEL:-'not set'}"
+    @echo "PDS_URL: ${PDS_URL:-'not set'}"
+    @echo "SYNC_VOTES_TO_PDS: ${SYNC_VOTES_TO_PDS:-'not set'}"
+    @echo "DB_PATH: ${DB_PATH:-'not set'}"
+    @echo "SCORES_DB_PATH: ${SCORES_DB_PATH:-'not set'}"
+    @echo "PRIMARY_REGION: ${PRIMARY_REGION:-'not set'}"
+    @echo "COMMUNITY_NOTES_SERVICE_ACCOUNT_DID: ${COMMUNITY_NOTES_SERVICE_ACCOUNT_DID:-'not set'}"
+    @echo "LABELER_DID: ${LABELER_DID:-'not set'}"
+
+
+# One-command health check of everything
+status: health fly-status
+
+# Check service health endpoints
+health:
+    @echo "\n🏥 Checking service health..."
+    @curl -s "https://notes.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
+
+
+# === LiteFS Setup ===
+
+# Set up LiteFS volume for Notes service (required for shared database)
+setup-litefs-volume:
+    @echo "💾 Setting up LiteFS volume for Notes service..."
+    @echo "📊 Creating 10GB volume in sjc region..."
+    fly volumes create litefs --region sjc --size 10
+    @echo "✅ LiteFS volume created successfully!"
+    @echo "💡 Volume will be mounted at /litefs in the container"
+
+# Check LiteFS status
+litefs-status:
+    @echo "🔍 Checking LiteFS status..."
+    fly ssh console --command "litefs status"
+
+# === Deployment & Management ===
+
+# Set up SSL certificate
+setup-cert:
+    fly certs add notes.fly.dev
+
+# Set secrets interactively (SECRETS ONLY - never saved to files)
+setup-secrets:
+    @echo "🔑 Setting up secrets for Notes service..."
+    @echo "⚠️  You will be prompted to paste each secret. Secrets are never saved to files."
+    @echo ""
+    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_PRIVATE_KEY:"
+    @read -s PRIVATE_KEY && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_PRIVATE_KEY="$$PRIVATE_KEY"
+    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT:"
+    @read -s ACCESS_JWT && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT="$$ACCESS_JWT"
+    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT:"
+    @read -s REFRESH_JWT && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT="$$REFRESH_JWT"
+    @echo "📝 Please paste your LABELER_SIGNING_KEY:"
+    @read -s SIGNING_KEY && fly secrets set LABELER_SIGNING_KEY="$$SIGNING_KEY"
+    @echo "✅ All secrets configured securely for Notes service!"
+
+# Deploy Notes service to Fly.io
+deploy:
+    @echo "🚀 Deploying Notes service..."
+    fly deploy \
+        --env NODE_ENV=production \
+        --env PORT=8081 \
+        --env LOG_LEVEL=info \
+        --env PDS_URL=https://bsky.network \
+        --env SYNC_VOTES_TO_PDS=true \
+        --env DB_PATH=/litefs/notes.db \
+        --env SCORES_DB_PATH=/litefs/scores.db \
+        --env PRIMARY_REGION=${PRIMARY_REGION:-sjc} \
+        --env COMMUNITY_NOTES_SERVICE_ACCOUNT_DID=${COMMUNITY_NOTES_SERVICE_ACCOUNT_DID} \
+        --env LABELER_DID=${LABELER_DID}
+
+# Deploy with custom environment variables (for advanced usage)
+deploy-env *ARGS:
+    @echo "🚀 Deploying Notes service with custom environment..."
+    fly deploy {{ARGS}}
+
+# Complete Fly.io deployment setup for Notes service
+fly-setup:
+    @echo "🚀 Complete Fly.io deployment setup for Notes service..."
+    @echo "1️⃣ Creating Fly.io app..."
+    fly apps create notes
+    @echo "2️⃣ Setting secrets from environment..."
+    just setup-secrets
+    @echo "3️⃣ Creating LiteFS volume..."
+    just setup-litefs-volume
+    @echo "4️⃣ Deploying application..."
+    just deploy
+    @echo "✅ Notes service deployment complete!"
+    @echo "🔗 Your Community Notes service is available at: https://notes.fly.dev"
+
+# Restart the Fly.io application
+restart:
+    fly app restart
+
+# Check Fly.io app status
+fly-status:
+    fly status
+
+# Open Fly.io dashboard
+fly-dashboard:
+    fly dashboard
+
+
+# Show recent application logs
+logs:
+    fly logs
+
+
+# === Database Management ===
+
+# Connect to production notes database via SSH
+db-connect-notes:
+    @echo "🗄️ Connecting to production notes database..."
+    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'}"
+
+# Connect to production scores database via SSH
+db-connect-scores:
+    @echo "🗄️ Connecting to production scores database..."
+    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'}"
+
+# Check database status
+db-status:
+    @echo "🗄️ Checking database status..."
+    fly ssh console --command "ls -la /litefs/"
+    @echo "📊 Notes database:"
+    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
+    @echo "📊 Scores database:"
+    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
+
+# Show recent status events
+db-status-events:
+    @echo "🗄️ Recent status events..."
+    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT * FROM statusEvent ORDER BY statusEventTime DESC LIMIT 10;'"
+
+# Show recent labels
+db-labels:
+    @echo "🗄️ Recent labels..."
+    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT * FROM labels ORDER BY cts DESC LIMIT 10;'"
+
+# Show recent proposals
+db-proposals:
+    @echo "🗄️ Recent proposals..."
+    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'} 'SELECT uri, indexedAt FROM record ORDER BY indexedAt DESC LIMIT 10;'"

@@ -1,0 +1,141 @@
+{
+  "lexicon": 1,
+  "id": "org.opencommunitynotes.rateProposal",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "Rate a proposal. Can create, update, or delete a rating.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri"],
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "at-uri",
+              "description": "The AT-URI of the proposal being rated"
+            },
+            "val": {
+              "type": "integer",
+              "minimum": -1,
+              "maximum": 1,
+              "description": "Rating value: +1 (helpful), 0 (somewhat helpful), -1 (not helpful). Required unless deleting."
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "knownValues": [
+                  "cites_high_quality_sources",
+                  "is_clear",
+                  "addresses_claim",
+                  "provides_important_context",
+                  "is_unbiased",
+                  "sources_missing_or_unreliable",
+                  "sources_dont_support_note",
+                  "is_incorrect",
+                  "is_opinion_or_speculation",
+                  "is_hard_to_understand",
+                  "is_off_topic_or_irrelevant",
+                  "is_argumentative_or_biased",
+                  "note_not_needed",
+                  "is_spam_harassment_or_abuse",
+                  "other"
+                ]
+              },
+              "description": "Reasons for the rating. Optional unless deleting."
+            },
+            "delete": {
+              "type": "boolean",
+              "default": false,
+              "description": "If true, delete the existing rating. val and reasons are ignored when deleting."
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["success"],
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "Whether the operation was successful"
+            },
+            "rating": {
+              "type": "ref",
+              "ref": "lex:org.opencommunitynotes.rateProposal#ratingView",
+              "description": "The created/updated rating. Not present when deleting."
+            },
+            "deleted": {
+              "type": "boolean",
+              "description": "True if a rating was deleted"
+            }
+          }
+        }
+      },
+      "errors": [
+        {
+          "name": "AuthenticationRequired",
+          "description": "Authentication is required for this endpoint"
+        },
+        {
+          "name": "ProposalNotFound",
+          "description": "The specified proposal does not exist"
+        },
+        {
+          "name": "InvalidRating",
+          "description": "The rating value or reasons are invalid"
+        },
+        {
+          "name": "InsufficientPermissions",
+          "description": "User does not have sufficient rating impact score"
+        }
+      ]
+    },
+    "ratingView": {
+      "type": "object",
+      "required": ["uri", "targetUri", "val", "cts"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "The AT-URI of the rating record"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid",
+          "description": "The CID of the rating record"
+        },
+        "targetUri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "The AT-URI of the proposal being rated"
+        },
+        "val": {
+          "type": "integer",
+          "description": "The rating value (+1, 0, -1)"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reasons for the rating"
+        },
+        "cts": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When the rating was created (canonical timestamp)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When the rating was last updated"
+        }
+      }
+    }
+  }
+}

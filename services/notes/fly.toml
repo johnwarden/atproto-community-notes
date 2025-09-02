@@ -1,0 +1,57 @@
+# fly.toml app configuration file for Community Notes Service
+#
+# Environment variables are passed via `just deploy` command
+# Secrets are managed via `just setup-secrets` command
+
+app = 'notes'
+primary_region = 'sjc'
+
+[build]
+
+# Environment variables are set via --env flags in justfile deploy command
+# This ensures they can be easily customized without modifying this file
+
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  processes = ["app"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+    force_https = true
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "1s"
+    method = "GET"
+    path = "/health"
+
+[processes]
+  app = "node index.js"
+
+[deploy]
+  strategy = "immediate"
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+# LiteFS configuration
+[experimental]
+  enable_consul = true
+
+[[mounts]]
+  source = "litefs"
+  destination = "/litefs"

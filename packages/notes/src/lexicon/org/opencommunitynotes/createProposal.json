@@ -1,0 +1,193 @@
+{
+  "lexicon": 1,
+  "id": "org.opencommunitynotes.createProposal",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "Create a new label proposal. Requires authentication.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["typ", "uri", "val", "note"],
+          "properties": {
+            "typ": {
+              "type": "string",
+              "description": "The type of moderation action being proposed (e.g., 'label')"
+            },
+            "uri": {
+              "type": "string",
+              "format": "uri",
+              "description": "The URI of the content being annotated (e.g., AT Protocol URI, HTTP URL, etc.)"
+            },
+            "cid": {
+              "type": "string",
+              "format": "cid",
+              "description": "Optionally, CID specifying the specific version of 'uri' resource this note applies to."
+            },
+            "val": {
+              "type": "string",
+              "maxLength": 128,
+              "description": "For labels, the proposed label value (e.g., 'needs-context', 'misleading', etc.)"
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2800,
+              "description": "The full text of any proposed note/context to be shown below content."
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "knownValues": [
+                  "factual_error",
+                  "altered_media",
+                  "outdated_information",
+                  "misrepresentation_or_missing_context",
+                  "unverified_claim_as_fact",
+                  "joke_or_satire",
+                  "other"
+                ]
+              },
+              "description": "Reasons for the proposal."
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["uri", "cid", "proposal"],
+          "properties": {
+            "uri": {
+              "type": "string",
+              "format": "at-uri",
+              "description": "The AT-URI of the created proposal record"
+            },
+            "cid": {
+              "type": "string",
+              "format": "cid",
+              "description": "The CID of the created proposal record"
+            },
+            "proposal": {
+              "type": "ref",
+              "ref": "lex:org.opencommunitynotes.createProposal#proposalView",
+              "description": "The created proposal as it will appear to users"
+            }
+          }
+        }
+      },
+      "errors": [
+        {
+          "name": "AuthenticationRequired",
+          "description": "Authentication is required for this endpoint"
+        },
+        {
+          "name": "InsufficientPermissions",
+          "description": "User does not have sufficient permission/reputation to create a note"
+        },
+        {
+          "name": "InvalidTarget",
+          "description": "The target URI is invalid or not accessible"
+        },
+        {
+          "name": "DuplicateProposal",
+          "description": "User has already created a proposal for this target"
+        },
+        {
+          "name": "RateLimited",
+          "description": "Too many notes created recently"
+        }
+      ]
+    },
+    "proposalView": {
+      "type": "object",
+      "required": [
+        "uri",
+        "cid",
+        "author",
+        "typ",
+        "targetUri",
+        "val",
+        "note",
+        "cts",
+        "status"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "at-uri",
+          "description": "The AT-URI of the proposal record"
+        },
+        "cid": {
+          "type": "string",
+          "format": "cid",
+          "description": "The CID of the proposal record"
+        },
+        "author": {
+          "type": "ref",
+          "ref": "lex:org.opencommunitynotes.createProposal#proposalAuthor",
+          "description": "Anonymous author information"
+        },
+        "typ": {
+          "type": "string",
+          "description": "The type of proposal (e.g., 'label')"
+        },
+        "targetUri": {
+          "type": "string",
+          "format": "uri",
+          "description": "The URI of the content being labeled"
+        },
+        "targetCid": {
+          "type": "string",
+          "format": "cid",
+          "description": "Optional CID of the specific version being annotated"
+        },
+        "val": {
+          "type": "string",
+          "description": "For labels, the proposed label value (e.g., 'needs-context', 'misleading', etc.)"
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reasons for the proposal"
+        },
+        "note": {
+          "type": "string",
+          "description": "The full text of any proposed note/context to be shown below content."
+        },
+        "cts": {
+          "type": "string",
+          "format": "datetime",
+          "description": "When this proposal was created"
+        },
+        "status": {
+          "type": "string",
+          "knownValues": [
+            "needs_more_ratings",
+            "rated_helpful",
+            "rated_not_helpful"
+          ],
+          "description": "Current status of the proposal"
+        }
+      }
+    },
+    "proposalAuthor": {
+      "type": "object",
+      "required": ["aid", "pseudonym"],
+      "properties": {
+        "aid": {
+          "type": "string",
+          "description": "Anonymous ID of the proposal author"
+        },
+        "pseudonym": {
+          "type": "string",
+          "description": "Anonymous pseudonym for the author (e.g., 'Thoughtful Beaver')"
+        }
+      }
+    }
+  }
+}

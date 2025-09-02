@@ -1,0 +1,105 @@
+# Community Notes API - Manual Test Commands
+
+# Prerequisites: Run `just dev` to start development environment
+
+# =============================================================================
+# FEED HYDRATION TESTING
+# =============================================================================
+
+# Get service information from introspection and getConfig
+INTROSPECTION_RESPONSE=$(curl -s "http://localhost:2581")
+CONFIG_RESPONSE=$(curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getConfig")
+REPO_DID=$(curl -s "http://localhost:2595/xrpc/app.bsky.feed.describeFeedGenerator" | jq -r '.did')
+FEEDGEN_DOCUMENT_DID=$(echo "$INTROSPECTION_RESPONSE" | jq -r '.notes.feedgenDocumentDid')
+LABELER_DID=$(echo "$CONFIG_RESPONSE" | jq -r '.labelerDid')
+echo "Feed Generator Repository DID: $REPO_DID"
+echo "Feed Generator Document DID: $FEEDGEN_DOCUMENT_DID"
+echo "Labeler DID: $LABELER_DID"
+
+# Test direct feed skeleton (Notes service)
+curl -s "http://localhost:2595/xrpc/app.bsky.feed.getFeedSkeleton?feed=at%3A%2F%2F${REPO_DID}%2Fapp.bsky.feed.generator%2Fnew&limit=5" | jq .
+
+# Test Bsky feed hydration (requires sync, includes labeler header)
+curl -s "http://localhost:2584/xrpc/app.bsky.feed.getFeed?feed=at%3A%2F%2F${REPO_DID}%2Fapp.bsky.feed.generator%2Fnew&limit=5" \
+  -H "atproto-accept-labelers: $LABELER_DID" | jq .
+
+# Check feed generator records in PDS (stored in repository DID)
+curl -s "http://localhost:2583/xrpc/com.atproto.repo.listRecords?repo=${REPO_DID}&collection=app.bsky.feed.generator" | jq .
+
+# Verify DID document has BskyFeedGenerator service (check document DID)
+curl -s "http://localhost:2582/${FEEDGEN_DOCUMENT_DID}" | jq '.service[] | select(.type == "BskyFeedGenerator")'
+
+# =============================================================================
+# CORE API TESTING
+# =============================================================================
+
+# 1. Get authentication token
+TOKEN=$(curl -s "http://localhost:2583/xrpc/com.atproto.server.createSession" \
+  -X POST -H "Content-Type: application/json" \
+  -d '{"identifier": "alice.test", "password": "hunter2"}' | jq -r '.accessJwt')
+
+# 2. Get a real post URI for testing
+REAL_URI=$(curl -s "http://localhost:2583/xrpc/com.atproto.repo.listRecords?repo=alice.test&collection=app.bsky.feed.post&limit=1" \
+  -H "Authorization: Bearer $TOKEN" | jq -r '.records[0].uri')
+
+# 3. Get notes for a post (shows mock data if no real notes exist)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris=${REAL_URI}" | jq
+
+# 4. Rate a note (creates viewer.rating structure)
+NOTE_URI=$(curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris=${REAL_URI}" | jq -r '.proposals[0].uri')
+
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"uri\":\"$NOTE_URI\",\"val\":1,\"reasons\":[\"helpful\"]}" \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.rateProposal" | jq
+
+# 5. View rating in note response (check viewer.rating structure)
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris=${REAL_URI}" | jq '.proposals[0].viewer'
+
+# 6. Create a new note (requires real post URI from PDS)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d "{
+    \"typ\": \"label\",
+    \"uri\": \"$REAL_URI\",
+    \"val\": \"needs-context\",
+    \"note\": \"This post needs additional context\",
+    \"reasons\": [\"factual_error\"]
+  }" \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+
+# 7. Test HTTP URI support (for external content)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "typ": "label",
+    "uri": "https://example.com/article-123",
+    "val": "potentially-misleading",
+    "note": "This article contains disputed claims",
+    "reasons": ["disputed_claim"]
+  }' \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+
+# 8. Test error cases
+
+# Unauthenticated request (should fail)
+curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris=${REAL_URI}" | jq
+
+# Invalid input (should fail)
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "typ": "invalid_type",
+    "uri": "invalid-uri",
+    "val": "needs-context",
+    "note": ""
+  }' \
+  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+
+# Run full test suite
+just test-notes
+
+# 9. Get post with labels (from Bsky AppView)
+curl -s "http://localhost:2584/xrpc/app.bsky.feed.getPosts?uris=at://did:plc:6zcbokovlzdqryp5as5me2qz/app.bsky.feed.post/3lwmgida54k2a" | jq '.posts[0] | {uri: .uri, labels: .labels // []}'
+
+# 10. Get notes for multiple subjects (public endpoint)
+curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris=at%3A%2F%2Fdid%3Aplc%3A6zcbokovlzdqryp5as5me2qz%2Fapp.bsky.feed.post%2F3lwmgida54k2a&amp;uris=at%3A%2F%2Fdid%3Aplc%3A6zcbokovlzdqryp5as5me2qz%2Fapp.bsky.feed.post%2F3lwmgidbca22a" | jq '.proposals | map({uri: .uri, note: .note, val: .val, targetUri: .targetUri})'

@@ -1,0 +1,33 @@
+{
+  "lexicon": 1,
+  "id": "org.opencommunitynotes.getConfig",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get Community Notes service configuration including feed generator DID and labeler information",
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["feedGeneratorDid", "labelerDid", "version"],
+          "properties": {
+            "version": {
+              "type": "string",
+              "description": "Configuration version for cache invalidation (ISO 8601 timestamp)"
+            },
+            "labelerDid": {
+              "type": "string",
+              "format": "did",
+              "description": "DID of the Community Notes labeler service"
+            },
+            "feedGeneratorDid": {
+              "type": "string",
+              "format": "did",
+              "description": "DID of the Community Notes repository (for constructing feed URIs)"
+            }
+          }
+        }
+      }
+    }
+  }
+}

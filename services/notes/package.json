@@ -1,0 +1,8 @@
+{
+  "name": "community-notes-service",
+  "private": true,
+  "packageManager": "pnpm@8.15.9",
+  "dependencies": {
+    "community-notes": "workspace:^"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "name": "community-notes",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": "dist/bin/server.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-notes": {
+      "types": "./dist/test-notes.d.ts",
+      "default": "./dist/test-notes.js"
+    },
+    "./mock-data": {
+      "types": "./dist/mock-data.d.ts",
+      "default": "./dist/mock-data.js"
+    },
+    "./dev-env": {
+      "types": "./dist/dev-env/test-network-wrapper.d.ts",
+      "default": "./dist/dev-env/test-network-wrapper.js"
+    }
+  },
+  "scripts": {
+    "lint:fix": "pnpm lint --fix",
+    "lint": "eslint --plugin unused-imports --rule 'unused-imports/no-unused-imports: off' --rule '@typescript-eslint/no-unused-vars: off' --rule '@typescript-eslint/ban-types: warn' --quiet",
+    "style:fix": "prettier --write .",
+    "style": "prettier --check .",
+    "format": "pnpm lint:fix && pnpm style:fix",
+    "codegen": "lex gen-server --yes ./src/lexicon ./src/lexicon/org/opencommunitynotes/* ./src/lexicon/app/bsky/feed/* && pnpm lint --fix ./src/lexicon/**/*.ts",
+    "build": "tsc --build tsconfig.build.json",
+    "start": "node dist/bin/server.js",
+    "test": "../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts"
+  },
+  "engines": {
+    "node": ">=18.7.0"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "better-sqlite3": "^10.0.0",
+    "cors": "2.8.5",
+    "express": "4.18.2",
+    "kysely": "^0.22.0",
+    "multiformats": "^9.9.0",
+    "pg": "^8.10.0",
+    "pino": "8.21.0",
+    "pino-http": "8.6.1"
+  },
+  "peerDependencies": {
+    "@atproto/api": ">=0.16.0",
+    "@atproto/common": ">=0.4.0",
+    "@atproto/lexicon": ">=0.4.0",
+    "@atproto/syntax": ">=0.3.0",
+    "@atproto/xrpc-server": ">=0.9.4"
+  },
+  "devDependencies": {
+    "@atproto/api": "0.16.0",
+    "@atproto/common": "^0.4.0",
+    "@atproto/crypto": "^0.4.0",
+    "@atproto/dev-env": "^0.3.158",
+    "@atproto/lex-cli": "0.9.4",
+    "@atproto/lexicon": "^0.4.0",
+    "@atproto/syntax": "^0.3.0",
+    "@atproto/xrpc-server": "^0.9.4",
+    "@did-plc/lib": "^0.0.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/pg": "^8.6.6",
+    "dotenv": "^16.0.0",
+    "eslint-plugin-unused-imports": "^3.2.0",
+    "get-port": "^6.1.2",
+    "tsx": "^4.20.5"
+  }
+}

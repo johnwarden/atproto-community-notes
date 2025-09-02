@@ -1,0 +1,19 @@
+version: "0.5"
+
+# Process Compose config for Notes dev-env (includes Community Notes service)
+# Environment variables are loaded from .env by dev-env-manager.sh
+
+processes:
+  dev-env:
+    command: "../../packages/dev-infra/with-test-redis-and-db.sh node --enable-source-maps dist/dev-env/bin.js | pnpm exec pino-pretty"
+    working_dir: "./packages/notes"
+    availability:
+      restart: "on_failure"
+      backoff_seconds: 5
+      max_restarts: 3
+
+# Non-interactive mode settings
+is_strict: false
+shell:
+  shell_command: "/bin/bash"
+  shell_argument: "-c"
