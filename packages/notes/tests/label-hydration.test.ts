@@ -126,7 +126,7 @@ describe('Label Hydration', () => {
 
       if (attempt < maxAttempts) {
         process.stderr.write(`⏳ [DEBUG] Waiting before retry\n`)
-        await new Promise((resolve) => setTimeout(resolve, 100)) // Use 0.1s delay like shell script
+        await new Promise((resolve) => setTimeout(resolve, 1000)) // Use 0.1s delay like shell script
       }
     }
 
@@ -199,7 +199,7 @@ describe('Label Hydration', () => {
 
       if (attempt < maxAttempts) {
         process.stderr.write(`⏳ [DEBUG] Waiting before retry\n`)
-        await new Promise((resolve) => setTimeout(resolve, 100)) // Use 0.1s delay like shell script
+        await new Promise((resolve) => setTimeout(resolve, 1000))     
       }
     }
 
