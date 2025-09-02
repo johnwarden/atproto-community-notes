@@ -63,8 +63,6 @@ describe('Label Hydration', () => {
       try {
         const encodedUri = encodeURIComponent(testPostUri)
 
-        process.stderr.write(`encodedUri: ${encodedUri}, ${testPostUri}\n`)
-
         const response = await fetch(
           `${network.bsky.url}/xrpc/app.bsky.feed.getPosts?uris=${encodedUri}`,
         )

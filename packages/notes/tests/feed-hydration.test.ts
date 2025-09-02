@@ -119,12 +119,6 @@ describe('Feed Hydration', () => {
       recordsCount > 0,
       `Feed generator records exist - Records count must be > 0. Got: ${recordsCount}`,
     )
-
-    // recordsData.records.forEach((record: any, index: number) => {
-    //   process.stderr.write(
-    //     ` [DEBUG]  ${index + 1}. ${record.uri} - ${record.value?.displayName}\n`,
-    //   )
-    // })
   })
 
   test('🆔 Test 4: DID Document Verification', async () => {

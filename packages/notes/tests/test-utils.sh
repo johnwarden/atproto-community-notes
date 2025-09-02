@@ -135,13 +135,9 @@ create_auth_token() {
     local identifier="${1:-alice.test}"
     local password="${2:-hunter2}"
 
-
-    debug "Authentications: $PDS_SERVICE_URL, $identifier, $password"
     local auth_response=$(curl -s -w "\n%{http_code}" -X POST "$PDS_SERVICE_URL/xrpc/com.atproto.server.createSession" \
         -H "Content-Type: application/json" \
         -d "{\"identifier\": \"$identifier\", \"password\": \"$password\"}")
-
-    debug "Auto response: $authentication"
 
     # Split response and HTTP code
     local http_code=$(echo "$auth_response" | tail -n1)
@@ -184,14 +180,10 @@ debug() {
 
 # Create a test post (updated to use dynamic PDS URL)
 create_test_post() {
-    debug "Creating test post with token: ${token:0:20}..."
     local token="$1"
     local text="${2:-This is a test post for Community Notes integration testing.}"
     local repo="${3:-alice.test}"
     local created_at=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
-
-    debug "POST to: $PDS_SERVICE_URL/xrpc/com.atproto.repo.createRecord"
-    debug "Repo: $repo, Text: $text"
 
     # Make the request and capture both body and HTTP code
     local response=$(curl -s -w "\n%{http_code}" -X POST "$PDS_SERVICE_URL/xrpc/com.atproto.repo.createRecord" \
@@ -203,13 +195,8 @@ create_test_post() {
     local http_code=$(echo "$response" | tail -n1)
     local body=$(echo "$response" | head -n -1)
 
-    debug "HTTP Code: $http_code"
-    debug "Response Body: $body"
-
     # Check if request was successful
     if [ "$http_code" != "200" ]; then
-        debug "ERROR: Post creation failed with HTTP $http_code"
-        debug "Error response: $body"
         echo ""
         return 1
     fi
@@ -217,12 +204,10 @@ create_test_post() {
     # Extract URI from response
     local uri=$(echo "$body" | jq -r '.uri // empty')
     if [ -z "$uri" ] || [ "$uri" = "null" ]; then
-        debug "ERROR: No URI in response"
         echo ""
         return 1
     fi
 
-    debug "Created post URI: $uri"
     echo "$uri"
 }
 
@@ -241,7 +226,6 @@ create_community_note() {
         -H "Content-Type: application/json" \
         -d "{\"typ\": \"label\", \"uri\": \"$subject_uri\", \"val\": \"$label_value\", \"note\": \"$text\", \"reasons\": $reasons}")
 
-    debug "Community note response: $note_response"
 
     # Split response and HTTP code
     local http_code=$(echo "$note_response" | tail -n1)

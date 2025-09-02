@@ -21,10 +21,7 @@ print_test_section "📋 Creating Test Data"
 # Create test post and scored proposal
 TEST_POST_URI=$(create_test_post "$TOKEN" "Test post for accept-labelers header testing")
 
-echo "A: $TOKEN $TEST_POST_URI"
 PROPOSAL_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_URI" "needs-context" "0.85" "rated_helpful" "Test note for accept-labelers header testing")
-
-echo "B"
 
 test_result "Test post and scored proposal created" "$([ -n "$TEST_POST_URI" ] && [ -n "$PROPOSAL_URI" ] && echo true || echo false)" "Post: $TEST_POST_URI, Proposal: $PROPOSAL_URI"
 

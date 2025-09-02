@@ -45,10 +45,10 @@ const run = async () => {
       port: 2584,
       dbPostgresSchema: 'bsky',
     },
-    // ozone: {
-    //   port: 2587,
-    //   dbPostgresSchema: 'ozone',
-    // },
+    ozone: {
+      port: 2587,
+      dbPostgresSchema: 'ozone',
+    },
     introspect: { port: 2581 },
     notes: { port: 2595, internalPort: 2596 },
     // Add labeler and notes services
@@ -84,7 +84,7 @@ const run = async () => {
   )
 
   // Generate mock data
-  console.log('Generating mock setup')
+  console.log('🎭 Generating mock setup')
   await network.generateMockSetupWrapper()
 
   console.log('✅ Dev environment ready')
