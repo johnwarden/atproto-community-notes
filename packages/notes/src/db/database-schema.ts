@@ -1,8 +1,8 @@
 import { Kysely } from 'kysely'
-import * as record from './tables/record'
-import * as scoreEvent from './tables/scoreEvent'
-import * as score from './tables/score'
 import * as pendingLabels from './tables/pendingLabels'
+import * as record from './tables/record'
+import * as score from './tables/score'
+import * as scoreEvent from './tables/scoreEvent'
 
 /**
  * Notes Database Schema (notes.db)

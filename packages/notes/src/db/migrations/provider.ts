@@ -7,9 +7,7 @@ import { Migration, MigrationProvider } from 'kysely'
  * Now simplified for SQLite - no context needed
  */
 export class CtxMigrationProvider implements MigrationProvider {
-  constructor(
-    private migrations: Record<string, Migration>,
-  ) {}
+  constructor(private migrations: Record<string, Migration>) {}
 
   async getMigrations(): Promise<Record<string, Migration>> {
     return this.migrations

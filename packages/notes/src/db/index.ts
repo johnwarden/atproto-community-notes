@@ -1,9 +1,9 @@
-import { Kysely, Migrator, SqliteDialect } from 'kysely'
 import BetterSqlite3 from 'better-sqlite3'
+import { Kysely, Migrator, SqliteDialect } from 'kysely'
+import { httpLogger as log } from '../logger'
 import { DatabaseSchema, DatabaseSchemaType } from './database-schema'
 import * as migrations from './migrations'
 import { CtxMigrationProvider } from './migrations/provider'
-import { httpLogger as log } from '../logger'
 
 export type { DatabaseSchema }
 
@@ -64,10 +64,13 @@ export class Database {
         if (result.status === 'Error') {
           throw new Error(`Migration ${result.migrationName} failed`)
         }
-        log.info({
-          migrationName: result.migrationName,
-          status: result.status
-        }, 'Migration executed')
+        log.info(
+          {
+            migrationName: result.migrationName,
+            status: result.status,
+          },
+          'Migration executed',
+        )
       }
     }
   }

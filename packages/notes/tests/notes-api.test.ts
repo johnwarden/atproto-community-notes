@@ -465,7 +465,6 @@ describe('Notes API', () => {
     )
   })
 
-
   test('cleanup', async () => {
     try {
       await network?.close()

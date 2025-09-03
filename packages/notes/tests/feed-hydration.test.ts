@@ -203,14 +203,17 @@ describe('Feed Hydration', () => {
 
           try {
             const errorData = JSON.parse(errorText)
-            
+
             if (errorData.error === 'InvalidFeedResponse') {
               // FATAL ERROR: InvalidFeedResponse indicates structural problem
               assert.ok(
                 false,
                 'Bsky hydration (no InvalidFeedResponse) - FATAL: InvalidFeedResponse indicates structural problem',
               )
-            } else if (errorData.error === 'InvalidRequest' && errorData.message?.includes('could not find feed')) {
+            } else if (
+              errorData.error === 'InvalidRequest' &&
+              errorData.message?.includes('could not find feed')
+            ) {
               // EXPECTED ERROR: Feed not yet synced to Bsky, continue retrying
               process.stderr.write(
                 `⏳ Feed not yet synced (attempt ${attempt}): ${errorData.message}, retrying...\n`,

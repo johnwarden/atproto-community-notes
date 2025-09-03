@@ -148,13 +148,15 @@ export default function (server: Server, ctx: AppContext) {
         }
 
         // Background sync operations (non-blocking)
-        syncToPds(ctx).catch(error => 
-          log.error({ error }, 'Background PDS sync failed after vote')
+        syncToPds(ctx).catch((error) =>
+          log.error({ error }, 'Background PDS sync failed after vote'),
         )
-        
-        ctx.notesService?.syncPendingLabels().catch((error: any) =>
-          log.error({ error }, 'Background label sync failed after vote')
-        )
+
+        ctx.notesService
+          ?.syncPendingLabels()
+          .catch((error: any) =>
+            log.error({ error }, 'Background label sync failed after vote'),
+          )
 
         if (input.body.delete) {
           return {

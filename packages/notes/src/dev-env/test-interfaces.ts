@@ -39,4 +39,3 @@ export interface NotesTestConfig {
   labelerDid: string
   labelerUrl: string
 }
-

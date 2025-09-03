@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express'
-import { XRPCError, InvalidRequestError } from '@atproto/xrpc-server'
+import { NextFunction, Request, Response } from 'express'
+import { InvalidRequestError, XRPCError } from '@atproto/xrpc-server'
 import { httpLogger as log } from '../logger'
 
 /**
@@ -100,7 +100,10 @@ export function asyncHandler(
 /**
  * Helper to extract relevant request context for logging
  */
-export function getRequestContext(req: any, additionalContext?: Record<string, any>) {
+export function getRequestContext(
+  req: any,
+  additionalContext?: Record<string, any>,
+) {
   return {
     method: req?.method,
     url: req?.url,

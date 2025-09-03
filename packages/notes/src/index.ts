@@ -22,7 +22,6 @@ import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
 import { createAuthenticatedPdsAgent } from './utils'
 
-
 // Create scoring-specific logger
 const scoringLog = subsystemLogger('scoring')
 

@@ -1,5 +1,5 @@
-import { Server } from '../../../lexicon'
 import { AppContext } from '../../../context'
+import { Server } from '../../../lexicon'
 import { httpLogger as log } from '../../../logger'
 
 export default function (server: Server, ctx: AppContext) {

@@ -15,7 +15,9 @@ export default function registerFeedHandlers(
   ctx: AppContext,
 ) {
   // getFeedSkeleton endpoint - use direct Express route
-  app.get('/xrpc/app.bsky.feed.getFeedSkeleton', asyncHandler(async (req, res) => {
+  app.get(
+    '/xrpc/app.bsky.feed.getFeedSkeleton',
+    asyncHandler(async (req, res) => {
       const {
         feed,
         limit = '50',
@@ -112,10 +114,13 @@ export default function registerFeedHandlers(
       )
 
       res.json(result)
-  }))
+    }),
+  )
 
   // describeFeedGenerator endpoint - use direct Express route
-  app.get('/xrpc/app.bsky.feed.describeFeedGenerator', asyncHandler(async (req, res) => {
+  app.get(
+    '/xrpc/app.bsky.feed.describeFeedGenerator',
+    asyncHandler(async (req, res) => {
       if (!ctx.feedGeneratorDid) {
         return res.status(500).json({
           error: 'InternalServerError',
@@ -133,15 +138,19 @@ export default function registerFeedHandlers(
         { uri: `at://${repoDid}/app.bsky.feed.generator/rated_helpful` },
       ]
 
-      log.info({
-        feedGeneratorDid: ctx.feedGeneratorDid,
-        repoDid,
-        feedCount: feeds.length
-      }, 'Feed generator described')
+      log.info(
+        {
+          feedGeneratorDid: ctx.feedGeneratorDid,
+          repoDid,
+          feedCount: feeds.length,
+        },
+        'Feed generator described',
+      )
 
       res.json({
         did,
         feeds,
       })
-  }))
+    }),
+  )
 }

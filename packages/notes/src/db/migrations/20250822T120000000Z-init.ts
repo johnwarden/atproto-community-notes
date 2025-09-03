@@ -47,19 +47,29 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute()
 
   // Index for target URI queries (JSON path) - for getProposals
-  await sql`CREATE INDEX record_target_uri_idx ON record (json_extract(record, '$.uri'))`.execute(db)
+  await sql`CREATE INDEX record_target_uri_idx ON record (json_extract(record, '$.uri'))`.execute(
+    db,
+  )
 
   // Index for AID queries (JSON path) - for user-specific queries
-  await sql`CREATE INDEX record_aid_idx ON record (json_extract(record, '$.aid'))`.execute(db)
+  await sql`CREATE INDEX record_aid_idx ON record (json_extract(record, '$.aid'))`.execute(
+    db,
+  )
 
   // Unique constraint for duplicate proposal prevention - prevents same user from creating multiple proposals with same label for same target
-  await sql`CREATE UNIQUE INDEX record_aid_target_uri_label_unique ON record (collection, json_extract(record, '$.aid'), json_extract(record, '$.uri'), json_extract(record, '$.val')) WHERE collection = 'social.pmsky.proposal'`.execute(db)
+  await sql`CREATE UNIQUE INDEX record_aid_target_uri_label_unique ON record (collection, json_extract(record, '$.aid'), json_extract(record, '$.uri'), json_extract(record, '$.val')) WHERE collection = 'social.pmsky.proposal'`.execute(
+    db,
+  )
 
   // Index for target URI + CID queries (for version-specific duplicate checking)
-  await sql`CREATE INDEX record_target_uri_cid_idx ON record (json_extract(record, '$.uri'), json_extract(record, '$.cid'))`.execute(db)
+  await sql`CREATE INDEX record_target_uri_cid_idx ON record (json_extract(record, '$.uri'), json_extract(record, '$.cid'))`.execute(
+    db,
+  )
 
   // Index for efficient vote queries - optimizes finding votes by note URI + voter AID
-  await sql`CREATE INDEX record_vote_queries_idx ON record (collection, json_extract(record, '$.uri'), json_extract(record, '$.aid')) WHERE collection = 'social.pmsky.vote'`.execute(db)
+  await sql`CREATE INDEX record_vote_queries_idx ON record (collection, json_extract(record, '$.uri'), json_extract(record, '$.aid')) WHERE collection = 'social.pmsky.vote'`.execute(
+    db,
+  )
 
   // Index for PDS sync status queries
   await db.schema
@@ -105,8 +115,12 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // Create pendingLabels table for external labeler sync
   await db.schema
     .createTable('pendingLabels')
-    .addColumn('id', 'integer', (col) => col.primaryKey().autoIncrement().notNull())
-    .addColumn('scoreEventId', 'integer', (col) => col.notNull().references('scoreEvent.scoreEventId'))
+    .addColumn('id', 'integer', (col) =>
+      col.primaryKey().autoIncrement().notNull(),
+    )
+    .addColumn('scoreEventId', 'integer', (col) =>
+      col.notNull().references('scoreEvent.scoreEventId'),
+    )
     .addColumn('targetUri', 'text', (col) => col.notNull())
     .addColumn('targetCid', 'text')
     .addColumn('labelValue', 'text', (col) => col.notNull())
@@ -248,8 +262,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     console.error('❌ Error creating pending label triggers:', error)
     throw error
   }
-
-
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
@@ -269,7 +281,10 @@ export async function down(db: Kysely<unknown>): Promise<void> {
 
   // Drop notes indexes
   await db.schema.dropIndex('record_sync_status_idx').ifExists().execute()
-  await db.schema.dropIndex('record_collection_indexed_at_idx').ifExists().execute()
+  await db.schema
+    .dropIndex('record_collection_indexed_at_idx')
+    .ifExists()
+    .execute()
   await sql`DROP INDEX IF EXISTS record_vote_queries_idx`.execute(db)
   await sql`DROP INDEX IF EXISTS record_target_uri_cid_idx`.execute(db)
   await sql`DROP INDEX IF EXISTS record_aid_target_uri_label_unique`.execute(db)

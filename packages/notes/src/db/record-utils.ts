@@ -521,9 +521,9 @@ export async function syncToPds(ctx: AppContext): Promise<void> {
       // Mark as synced and update CID
       await ctx.db.db
         .updateTable('record')
-        .set({ 
+        .set({
           syncedToPds: 1,
-          cid: correctCid.toString()
+          cid: correctCid.toString(),
         })
         .where('uri', '=', record.uri)
         .execute()

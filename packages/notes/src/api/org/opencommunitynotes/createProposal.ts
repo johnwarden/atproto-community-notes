@@ -1,7 +1,11 @@
 import { AtUri } from '@atproto/api'
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../context'
-import { findExistingProposalByUser, putRecord, syncToPds } from '../../../db/record-utils'
+import {
+  findExistingProposalByUser,
+  putRecord,
+  syncToPds,
+} from '../../../db/record-utils'
 import { Server } from '../../../lexicon'
 import {
   HandlerError,
@@ -346,13 +350,21 @@ export default function (server: Server, ctx: AppContext) {
         })
 
         // Background sync operations (non-blocking)
-        syncToPds(ctx).catch(error => 
-          log.error({ error }, 'Background PDS sync failed after proposal creation')
+        syncToPds(ctx).catch((error) =>
+          log.error(
+            { error },
+            'Background PDS sync failed after proposal creation',
+          ),
         )
-        
-        ctx.notesService?.syncPendingLabels().catch((error: any) =>
-          log.error({ error }, 'Background label sync failed after proposal creation')
-        )
+
+        ctx.notesService
+          ?.syncPendingLabels()
+          .catch((error: any) =>
+            log.error(
+              { error },
+              'Background label sync failed after proposal creation',
+            ),
+          )
 
         log.info(
           {

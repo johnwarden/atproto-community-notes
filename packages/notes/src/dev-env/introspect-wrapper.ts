@@ -1,7 +1,7 @@
 import express from 'express'
 import { TestNetwork } from '@atproto/dev-env'
-import { TestLabeler } from './test-labeler'
 import { TestNotes } from '../test-notes'
+import { TestLabeler } from './test-labeler'
 
 /**
  * Wrapper around the base TestNetwork introspection server that adds

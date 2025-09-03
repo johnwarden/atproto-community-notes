@@ -16,7 +16,10 @@ export class FeedScaffolding {
   /**
    * Validate common feed parameters
    */
-  static validateParams(limit: number, cursor?: string): { limit: number; offsetTime: number } {
+  static validateParams(
+    limit: number,
+    cursor?: string,
+  ): { limit: number; offsetTime: number } {
     // Validate limit
     if (limit < 1 || limit > 100) {
       throw new InvalidRequestError('Limit must be between 1 and 100')
@@ -40,14 +43,20 @@ export class FeedScaffolding {
    * Process feed results - filter AT Protocol URIs and handle pagination
    */
   static processFeedResults(
-    results: Array<{ targetUri: unknown; indexedAt?: string; scoreEventTime?: number }>,
+    results: Array<{
+      targetUri: unknown
+      indexedAt?: string
+      scoreEventTime?: number
+    }>,
     limit: number,
-    timeField: 'indexedAt' | 'scoreEventTime' = 'indexedAt'
+    timeField: 'indexedAt' | 'scoreEventTime' = 'indexedAt',
   ): FeedSkeleton {
     // Filter to only AT Protocol URIs and prepare feed items
-    const allValidItems = results.filter(row => isAtProtocolUri(row.targetUri as string))
-    const feed = allValidItems.slice(0, limit).map(row => ({
-      post: row.targetUri as string
+    const allValidItems = results.filter((row) =>
+      isAtProtocolUri(row.targetUri as string),
+    )
+    const feed = allValidItems.slice(0, limit).map((row) => ({
+      post: row.targetUri as string,
     }))
 
     // Generate cursor for next page
@@ -80,7 +89,7 @@ export class FeedScaffolding {
     feedCount: number,
     queryTime: number,
     userDid?: string,
-    hasCursor?: boolean
+    hasCursor?: boolean,
   ): void {
     log.info(
       {
@@ -90,7 +99,7 @@ export class FeedScaffolding {
         userDid: userDid || 'anonymous',
         hasCursor: !!hasCursor,
       },
-      'Feed generated successfully'
+      'Feed generated successfully',
     )
   }
 }

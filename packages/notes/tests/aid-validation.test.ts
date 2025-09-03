@@ -1,5 +1,5 @@
-import { test, describe } from 'node:test'
 import assert from 'node:assert'
+import { describe, test } from 'node:test'
 import { generateAid } from '../src/utils'
 
 // Helper function for AID format validation
