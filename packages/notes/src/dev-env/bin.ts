@@ -48,6 +48,8 @@ const run = async () => {
     ozone: {
       port: 2587,
       dbPostgresSchema: 'ozone',
+      // Set a very long interval to effectively disable team profile sync
+      dbTeamProfileRefreshIntervalMs: 24 * 60 * 60 * 1000, // 24 hours
     },
     introspect: { port: 2581 },
     notes: { port: 2595, internalPort: 2596 },
