@@ -193,7 +193,7 @@ describe('Feed Hydration', () => {
           } else {
             // Zero results, continue retrying
             process.stderr.write(
-              `⏳ Zero results, attempt$ $attempt}, retrying...\n`,
+              `⏳ Zero results, attempt ${attempt}, retrying...\n`,
             )
           }
         } else {
@@ -201,12 +201,30 @@ describe('Feed Hydration', () => {
           const errorText = await bskyResponse.text()
           lastError = `Error ${bskyResponse.status}: ${errorText}`
 
-          const errorData = JSON.parse(errorText)
-          if (errorData.error === 'InvalidFeedResponse') {
-            // FATAL ERROR: InvalidFeedResponse indicates structural problem
-            assert.ok(
-              false,
-              'Bsky hydration (no InvalidFeedResponse) - FATAL: InvalidFeedResponse indicates structural problem',
+          try {
+            const errorData = JSON.parse(errorText)
+            
+            if (errorData.error === 'InvalidFeedResponse') {
+              // FATAL ERROR: InvalidFeedResponse indicates structural problem
+              assert.ok(
+                false,
+                'Bsky hydration (no InvalidFeedResponse) - FATAL: InvalidFeedResponse indicates structural problem',
+              )
+            } else if (errorData.error === 'InvalidRequest' && errorData.message?.includes('could not find feed')) {
+              // EXPECTED ERROR: Feed not yet synced to Bsky, continue retrying
+              process.stderr.write(
+                `⏳ Feed not yet synced (attempt ${attempt}): ${errorData.message}, retrying...\n`,
+              )
+            } else {
+              // OTHER ERRORS: Log but continue retrying
+              process.stderr.write(
+                `⏳ Error on attempt ${attempt}: ${errorData.error} - ${errorData.message}, retrying...\n`,
+              )
+            }
+          } catch (parseError) {
+            // Non-JSON error response, log and continue retrying
+            process.stderr.write(
+              `⏳ Non-JSON error on attempt ${attempt}: ${lastError}, retrying...\n`,
             )
           }
         }
