@@ -1,6 +1,6 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { httpLogger as log } from '../logger'
-import { FeedContext, FeedSkeleton } from './types'
+import { FeedSkeleton } from './types'
 
 /**
  * Helper function to check if a URI is a valid AT Protocol URI

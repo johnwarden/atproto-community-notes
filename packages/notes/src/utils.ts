@@ -5,7 +5,7 @@ import { AtpAgent } from '@atproto/api'
 import { cborEncode, verifyCidForBytes } from '@atproto/common'
 import { lexToIpld } from '@atproto/lexicon'
 import { AtUri } from '@atproto/syntax'
-import { ServiceAccount } from './config'
+import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from './context'
 import { httpLogger as log } from './logger'
 
@@ -428,7 +428,6 @@ export async function normalizeAtUri(
     )
 
     // If URI parsing fails, throw an InvalidRequestError for proper error handling
-    const { InvalidRequestError } = require('@atproto/xrpc-server')
     throw new InvalidRequestError(
       `Invalid AT URI format: ${uriStr} - ${
         error instanceof Error ? error.message : 'Unknown error'

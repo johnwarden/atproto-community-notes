@@ -1,5 +1,4 @@
 import express from 'express'
-import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../context'
 import { httpLogger as log } from '../logger'
 import { asyncHandler } from '../middleware/error-handling'

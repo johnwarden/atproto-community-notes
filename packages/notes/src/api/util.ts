@@ -1,4 +1,4 @@
-export const resHeaders = (result: { [key: string]: any }) => {
+export const resHeaders = (_result: { [key: string]: any }) => {
   const headers = {}
   return headers
 }

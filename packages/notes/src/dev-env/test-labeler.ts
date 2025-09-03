@@ -1,6 +1,6 @@
 import events from 'node:events'
 import http from 'node:http'
-import express from 'express'
+import express, { json } from 'express'
 import { Secp256k1Keypair } from '@atproto/crypto'
 import { createServiceAccount } from '../test-notes'
 
@@ -36,7 +36,7 @@ export class TestLabeler {
 
   async start(): Promise<void> {
     const app = express()
-    app.use(express.json())
+    app.use(json())
 
     // Mock GET /label endpoint - creates labels directly in bsky database
     app.get('/label', async (req, res) => {

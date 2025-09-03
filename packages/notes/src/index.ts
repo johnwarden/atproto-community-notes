@@ -3,7 +3,7 @@ import {
   createServer as createHttpServer,
 } from 'node:http'
 import cors from 'cors'
-import express from 'express'
+import express, { json } from 'express'
 import { AtpAgent } from '@atproto/api'
 import { subsystemLogger } from '@atproto/common'
 import createProposal from './api/org/opencommunitynotes/createProposal'
@@ -91,7 +91,7 @@ export class NotesService {
     app.use(loggerMiddleware)
 
     // Add JSON parsing middleware for internal endpoints
-    app.use(express.json())
+    app.use(json())
 
     const server = createServer()
 
@@ -145,7 +145,7 @@ export class NotesService {
 
     // Create internal server for scoring endpoints
     const internalApp = express()
-    internalApp.use(express.json())
+    internalApp.use(json())
 
     // Internal API endpoint for scoring
     internalApp.post('/internal/score', async (req, res) => {

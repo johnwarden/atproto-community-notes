@@ -42,7 +42,6 @@ export default function (server: Server, ctx: AppContext) {
         throw new AuthRequiredError('Notes service configuration error')
       }
 
-      const serviceDid = ctx.repoAccount.did
       const servicePrivateKey = ctx.repoAccount.key
       const viewerAid = generateAid(viewerDid, servicePrivateKey)
 
