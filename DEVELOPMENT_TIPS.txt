@@ -1,0 +1,25 @@
+# Development Tips for ATProto Community Notes
+
+## Essential Commands
+- `just build notes` - (or `just build dev-env`, etc.) Build the notes package after code changes, before testing
+- `just restart` - Always run this before testing changes against the dev-env
+- `just test notes` - Run tests (with timeout)
+- `just test notes notes-api.test.ts` - Run specific test file under the notes/tests
+- `just notes-db` - Access the notes database interactively
+- `just recent-logs notes 200` - Check recent structured logs (not console logs) from the dev-env
+- `just test-logs notes 200` - Check recent structured logs (not console logs) from the last test run
+- `just process-logs` - View stdout from dev-env (can freeze, be careful)
+
+## Database Notes
+- Database is recreated on dev-env setup, so migrations run fresh each time
+- Use introspection server to get current database path, don't hardcode paths
+- Check trigger creation with database inspection tools
+
+## Testing XRPC Endpoings
+- Run $(just auth-token) to export a bearer token in the TOKEN env var. Look at the integration tests for sample XRPC commands using curl and the bearer token.
+
+## Git Commands
+- Always run non-interactive git commands
+
+## Commits
+- Always build, restart, and run integration-test-notes after each incremental change and do a clean commit only of code you've changed.
