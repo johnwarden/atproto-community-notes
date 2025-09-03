@@ -1,3 +1,4 @@
+import { sql } from 'kysely'
 import { Database } from '../db'
 import {
   findRecordsByTargetUri,
@@ -49,36 +50,24 @@ export class ProposalsHydrator {
 
     if (this.db) {
       try {
-        const dbRecords = await findRecordsByTargetUri(
-          this.db,
-          uri,
-          'social.pmsky.proposal',
-          limit || 50,
-        )
+        // Single JOIN query to get proposals with their scores
+        const proposalsWithScores = await this.db.db
+          .selectFrom('record')
+          .leftJoin('score', 'score.proposalUri', 'record.uri')
+          .selectAll('record')
+          .select(['score.status', 'score.score'])
+          .where('record.collection', '=', 'social.pmsky.proposal')
+          .where(sql`json_extract(record.record, '$.uri')`, '=', uri)
+          .orderBy('record.indexedAt', 'desc')
+          .limit(limit || 50)
+          .execute()
 
-        // Get status and score information from scores DB
-        let scoreInfoMap = new Map<string, { status: string; score: number }>()
-        if (dbRecords.length > 0) {
-          const proposalUris = dbRecords.map((record) => record.uri)
-          const scores = await scoresDb.db
-            .selectFrom('score')
-            .select(['proposalUri', 'status', 'score'])
-            .where('proposalUri', 'in', proposalUris)
-            .execute()
-          scoreInfoMap = new Map(
-            scores.map((row: any) => [
-              row.proposalUri,
-              { status: row.status, score: row.score },
-            ]),
-          )
-        }
-
-        realProposals = dbRecords.map((record) => {
-          const scoreInfo = scoreInfoMap.get(record.uri)
+        realProposals = proposalsWithScores.map((row) => {
+          // The row contains all record fields plus score.status and score.score
           return this.dbRecordToProposal(
-            record,
-            scoreInfo?.status,
-            scoreInfo?.score,
+            row, // Pass the full row which has all record fields
+            row.status || undefined,
+            row.score || undefined,
           )
         })
       } catch (error) {

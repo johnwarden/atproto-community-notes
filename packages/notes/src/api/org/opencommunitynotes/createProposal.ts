@@ -1,7 +1,7 @@
 import { AtUri } from '@atproto/api'
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../context'
-import { findExistingProposalByUser, putRecord } from '../../../db/record-utils'
+import { findExistingProposalByUser, putRecord, syncToPds } from '../../../db/record-utils'
 import { Server } from '../../../lexicon'
 import {
   HandlerError,
@@ -17,8 +17,6 @@ import {
 } from '../../../utils'
 import { resHeaders } from '../../util'
 import { vote } from './rateProposal'
-
-const syncProposalsToPds = false
 
 // Helper function to validate AT Protocol target URIs
 async function validateTargetUri(
@@ -327,7 +325,6 @@ export default function (server: Server, ctx: AppContext) {
           collection: 'social.pmsky.proposal',
           rkey,
           record: proposalRecord,
-          syncToPds: syncProposalsToPds, // Always sync proposals to PDS
         })
 
         if (!putResult.success || !putResult.uri) {
@@ -347,6 +344,15 @@ export default function (server: Server, ctx: AppContext) {
             'is_unbiased',
           ],
         })
+
+        // Background sync operations (non-blocking)
+        syncToPds(ctx).catch(error => 
+          log.error({ error }, 'Background PDS sync failed after proposal creation')
+        )
+        
+        ctx.notesService?.syncPendingLabels().catch((error: any) =>
+          log.error({ error }, 'Background label sync failed after proposal creation')
+        )
 
         log.info(
           {

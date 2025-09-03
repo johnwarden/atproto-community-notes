@@ -15,6 +15,7 @@ export interface AppContext {
   pdsUrl: string // PDS URL for AT Protocol record creation
   reqLabelers: () => Record<string, any>
   config: any // Configuration object to avoid circular imports
+  notesService?: any // NotesService instance to avoid circular imports
 }
 
 export class Hydrator {

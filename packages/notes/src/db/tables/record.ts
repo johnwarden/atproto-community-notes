@@ -6,6 +6,7 @@ export interface RecordRow {
   rkey: string
   record: string // JSON string in SQLite (was object in PostgreSQL)
   indexedAt: string
+  syncedToPds: number // SQLite boolean as 0/1
 }
 
 export type PartialDB = {

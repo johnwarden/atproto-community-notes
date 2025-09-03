@@ -3,6 +3,7 @@ import {
   getVoteRecord,
   proposalExistsInDb,
   putRecord,
+  syncToPds,
 } from '../../../db/record-utils'
 import { Server } from '../../../lexicon'
 import {
@@ -12,7 +13,6 @@ import {
 import { httpLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import { generateAid, generateVoteRkey } from '../../../utils'
-const syncVotesToPds = false
 
 export default function (server: Server, ctx: AppContext) {
   server.org.opencommunitynotes.rateProposal({
@@ -147,6 +147,15 @@ export default function (server: Server, ctx: AppContext) {
           } as HandlerError
         }
 
+        // Background sync operations (non-blocking)
+        syncToPds(ctx).catch(error => 
+          log.error({ error }, 'Background PDS sync failed after vote')
+        )
+        
+        ctx.notesService?.syncPendingLabels().catch((error: any) =>
+          log.error({ error }, 'Background label sync failed after vote')
+        )
+
         if (input.body.delete) {
           return {
             encoding: 'application/json',
@@ -225,7 +234,6 @@ export async function vote(
     collection: 'social.pmsky.vote',
     rkey,
     record: val === undefined ? undefined : voteRecord,
-    syncToPds: syncVotesToPds,
   })
 
   if (!result.success) {
@@ -247,7 +255,6 @@ export async function vote(
       proposalUri,
       val,
       operation: val === undefined ? 'delete' : 'create_or_update',
-      syncToPds: syncVotesToPds,
     },
     'Vote operation completed successfully',
   )

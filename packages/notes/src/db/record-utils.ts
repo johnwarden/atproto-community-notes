@@ -34,6 +34,7 @@ export async function insertRecord(
       rkey: opts?.rkey || uri.rkey,
       record: JSON.stringify(record), // JSON as string in SQLite
       indexedAt: timestamp,
+      syncedToPds: 0, // New records are not synced to PDS yet
     })
     .onConflict((oc) => oc.column('uri').doNothing()) // Bsky pattern: ignore duplicates
     .execute()
@@ -392,8 +393,8 @@ export async function proposalExistsInDb(
 // }
 
 /**
- * Unified record management function that handles both DB storage and optional PDS sync
- * This replaces the separate manageRecord function and consolidates record operations
+ * Unified record management function that handles local DB storage only
+ * PDS sync is handled separately by the syncToPds function
  */
 export async function putRecord(
   ctx: AppContext,
@@ -401,10 +402,9 @@ export async function putRecord(
     collection: string
     rkey: string
     record?: any // undefined = delete
-    syncToPds?: boolean
   },
 ): Promise<{ success: boolean; uri?: string; cid?: string }> {
-  const { collection, rkey, record, syncToPds = false } = params
+  const { collection, rkey, record } = params
 
   if (!ctx.repoAccount?.did) {
     throw new Error('Repository account DID must be configured')
@@ -425,22 +425,7 @@ export async function putRecord(
         return { success: false }
       }
 
-      // Delete from PDS if sync enabled
-      if (syncToPds) {
-        const { agent, serviceRepoId } = await createAuthenticatedPdsAgent(ctx)
-        await agent.com.atproto.repo.deleteRecord({
-          repo: serviceRepoId,
-          collection,
-          rkey,
-        })
-
-        log.info(
-          { uri, collection, rkey },
-          'Record deleted from both DB and PDS',
-        )
-      } else {
-        log.info({ uri, collection, rkey }, 'Record deleted from DB only')
-      }
+      log.info({ uri, collection, rkey }, 'Record deleted from local DB')
 
       return { success: true }
     } else {
@@ -460,30 +445,11 @@ export async function putRecord(
         rkey,
       })
 
-      // Sync to PDS if enabled
-      if (syncToPds) {
-        const { agent, serviceRepoId } = await createAuthenticatedPdsAgent(ctx)
-
-        const { data } = await agent.com.atproto.repo.putRecord({
-          repo: serviceRepoId,
-          collection,
-          rkey,
-          record,
-        })
-
-        log.info(
-          { uri: data.uri, cid: data.cid, collection, rkey },
-          'Record stored in both DB and PDS',
-        )
-
-        return { success: true, uri: data.uri, cid: data.cid }
-      } else {
-        log.info(
-          { uri, cid: cidObj.toString(), collection, rkey },
-          'Record stored in DB only',
-        )
-        return { success: true, uri, cid: cidObj.toString() }
-      }
+      log.info(
+        { uri, cid: cidObj.toString(), collection, rkey },
+        'Record stored in local DB',
+      )
+      return { success: true, uri, cid: cidObj.toString() }
     }
   } catch (error) {
     log.error(
@@ -491,7 +457,6 @@ export async function putRecord(
         collection,
         rkey,
         record: record,
-        syncToPds,
         error: error instanceof Error ? error.message : error,
       },
       'Failed to put record',
@@ -501,4 +466,74 @@ export async function putRecord(
       `Failed to put record: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )
   }
+}
+
+/**
+ * Sync unsynced records to PDS in background
+ * This function handles network failures gracefully and doesn't throw errors
+ */
+export async function syncToPds(ctx: AppContext): Promise<void> {
+  if (!ctx.db) {
+    log.warn('Database not available for PDS sync')
+    return
+  }
+
+  // Find unsynced records
+  const unsyncedRecords = await ctx.db.db
+    .selectFrom('record')
+    .selectAll()
+    .where('syncedToPds', '=', 0)
+    .limit(50) // Batch size to avoid overwhelming PDS
+    .execute()
+
+  if (unsyncedRecords.length === 0) {
+    return
+  }
+
+  log.info({ count: unsyncedRecords.length }, 'Starting PDS sync batch')
+
+  // Create PDS agent once for the entire batch
+  let agent, serviceRepoId
+  try {
+    const pdsAgent = await createAuthenticatedPdsAgent(ctx)
+    agent = pdsAgent.agent
+    serviceRepoId = pdsAgent.serviceRepoId
+  } catch (error) {
+    log.error({ error }, 'Failed to create PDS agent for sync batch')
+    return // Don't throw, just return
+  }
+
+  for (const record of unsyncedRecords) {
+    try {
+      // Recalculate CID for the actual record
+      const recordData = JSON.parse(record.record)
+      const common = await import('@atproto/common')
+      const ipldRecord = common.jsonToIpld(recordData)
+      const correctCid = await common.cidForCbor(ipldRecord)
+
+      await agent.com.atproto.repo.putRecord({
+        repo: serviceRepoId,
+        collection: record.collection,
+        rkey: record.rkey,
+        record: recordData,
+      })
+
+      // Mark as synced and update CID
+      await ctx.db.db
+        .updateTable('record')
+        .set({ 
+          syncedToPds: 1,
+          cid: correctCid.toString()
+        })
+        .where('uri', '=', record.uri)
+        .execute()
+
+      log.info({ uri: record.uri }, 'Record synced to PDS')
+    } catch (error) {
+      log.error({ uri: record.uri, error }, 'Failed to sync record to PDS')
+      // Continue with other records - don't fail the batch
+    }
+  }
+
+  log.info({ count: unsyncedRecords.length }, 'PDS sync batch completed')
 }

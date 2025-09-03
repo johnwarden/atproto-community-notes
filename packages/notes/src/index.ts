@@ -111,6 +111,7 @@ export class NotesService {
       pdsUrl: this.pdsUrl,
       reqLabelers: () => ({}), // Mocked for now
       config: this.config,
+      notesService: this, // Pass NotesService instance for label sync
     }
 
     // Add basic routes (root, health, robots.txt)
@@ -486,7 +487,7 @@ export class NotesService {
   /**
    * Sync all pending labels (called synchronously after score)
    */
-  private async syncPendingLabels(): Promise<void> {
+  async syncPendingLabels(): Promise<void> {
     const pendingLabels = await this.getPendingLabels()
 
     if (pendingLabels.length === 0) {

@@ -30,6 +30,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('rkey', 'text', (col) => col.notNull())
     .addColumn('record', 'text', (col) => col.notNull()) // JSON as TEXT in SQLite
     .addColumn('indexedAt', 'text', (col) => col.notNull())
+    .addColumn('syncedToPds', 'integer', (col) => col.defaultTo(0).notNull()) // SQLite boolean as 0/1
     .execute()
 
   // Indexes for common queries (converted to SQLite JSON1 syntax)
@@ -59,6 +60,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   // Index for efficient vote queries - optimizes finding votes by note URI + voter AID
   await sql`CREATE INDEX record_vote_queries_idx ON record (collection, json_extract(record, '$.uri'), json_extract(record, '$.aid')) WHERE collection = 'social.pmsky.vote'`.execute(db)
+
+  // Index for PDS sync status queries
+  await db.schema
+    .createIndex('record_sync_status_idx')
+    .on('record')
+    .columns(['syncedToPds', 'collection'])
+    .execute()
 
   // ========================================
   // SCORING TABLES
@@ -240,6 +248,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     console.error('❌ Error creating pending label triggers:', error)
     throw error
   }
+
+
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
@@ -258,6 +268,7 @@ export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('pendingLabels_unique_idx').ifExists().execute()
 
   // Drop notes indexes
+  await db.schema.dropIndex('record_sync_status_idx').ifExists().execute()
   await db.schema.dropIndex('record_collection_indexed_at_idx').ifExists().execute()
   await sql`DROP INDEX IF EXISTS record_vote_queries_idx`.execute(db)
   await sql`DROP INDEX IF EXISTS record_target_uri_cid_idx`.execute(db)
