@@ -14,11 +14,9 @@ env:
     @echo "PORT: ${PORT:-'not set'}"
     @echo "LOG_LEVEL: ${LOG_LEVEL:-'not set'}"
     @echo "PDS_URL: ${PDS_URL:-'not set'}"
-    @echo "SYNC_VOTES_TO_PDS: ${SYNC_VOTES_TO_PDS:-'not set'}"
     @echo "DB_PATH: ${DB_PATH:-'not set'}"
-    @echo "SCORES_DB_PATH: ${SCORES_DB_PATH:-'not set'}"
     @echo "PRIMARY_REGION: ${PRIMARY_REGION:-'not set'}"
-    @echo "COMMUNITY_NOTES_SERVICE_ACCOUNT_DID: ${COMMUNITY_NOTES_SERVICE_ACCOUNT_DID:-'not set'}"
+    @echo "REPO_DID: ${REPO_DID:-'not set'}"
     @echo "LABELER_DID: ${LABELER_DID:-'not set'}"
 
 
@@ -71,16 +69,16 @@ setup-secrets:
 deploy:
     @echo "🚀 Deploying Notes service..."
     fly deploy \
-        --env NODE_ENV=production \
-        --env PORT=8081 \
-        --env LOG_LEVEL=info \
-        --env PDS_URL=https://bsky.network \
-        --env SYNC_VOTES_TO_PDS=true \
-        --env DB_PATH=/litefs/notes.db \
-        --env SCORES_DB_PATH=/litefs/scores.db \
+        --env NODE_ENV=${NODE_ENV}} \
+        --env PORT=${PORT} \
+        --env INTERNAL_PORT=${INTERNAL_PORT} \
+        --env LOG_LEVEL=${LOG_LEVEL} \
+        --env PDS_URL=${PDS_URL} \
+        --env DB_PATH=${DB_PATH} \
         --env PRIMARY_REGION=${PRIMARY_REGION:-sjc} \
-        --env COMMUNITY_NOTES_SERVICE_ACCOUNT_DID=${COMMUNITY_NOTES_SERVICE_ACCOUNT_DID} \
+        --env REPO_DID=${REPO_DID} \
         --env LABELER_DID=${LABELER_DID}
+        --env FEEDGEN_DOCUMENT_DID=${FEEDGEN_DOCUMENT_DID}
 
 # Deploy with custom environment variables (for advanced usage)
 deploy-env *ARGS:
@@ -122,35 +120,28 @@ logs:
 # === Database Management ===
 
 # Connect to production notes database via SSH
-db-connect-notes:
+db-connect-db:
     @echo "🗄️ Connecting to production notes database..."
-    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'}"
-
-# Connect to production scores database via SSH
-db-connect-scores:
-    @echo "🗄️ Connecting to production scores database..."
-    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'}"
+    fly ssh console --command "sqlite3 ${DB_PATH}"
 
 # Check database status
 db-status:
     @echo "🗄️ Checking database status..."
     fly ssh console --command "ls -la /litefs/"
     @echo "📊 Notes database:"
-    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
-    @echo "📊 Scores database:"
-    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
 
 # Show recent status events
 db-status-events:
     @echo "🗄️ Recent status events..."
-    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT * FROM statusEvent ORDER BY statusEventTime DESC LIMIT 10;'"
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM statusEvent ORDER BY statusEventTime DESC LIMIT 10;'"
 
 # Show recent labels
 db-labels:
     @echo "🗄️ Recent labels..."
-    fly ssh console --command "sqlite3 ${SCORES_DB_PATH:-'/litefs/scores.db'} 'SELECT * FROM labels ORDER BY cts DESC LIMIT 10;'"
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM labels ORDER BY cts DESC LIMIT 10;'"
 
 # Show recent proposals
 db-proposals:
     @echo "🗄️ Recent proposals..."
-    fly ssh console --command "sqlite3 ${DB_PATH:-'/litefs/notes.db'} 'SELECT uri, indexedAt FROM record ORDER BY indexedAt DESC LIMIT 10;'"
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record ORDER BY indexedAt DESC LIMIT 10;'"

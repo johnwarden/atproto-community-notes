@@ -1,5 +1,8 @@
 import { Database } from '../db'
-import { RecordUtils } from '../db/record-utils'
+import {
+  findRecordsByTargetUri,
+  findVotesByProposalsAndVoter,
+} from '../db/record-utils'
 import { httpLogger as log } from '../logger'
 import { generateAid, generatePseudonymFromAid } from '../utils'
 import { HydrationMap } from './util'
@@ -46,8 +49,8 @@ export class ProposalsHydrator {
 
     if (this.db) {
       try {
-        const recordUtils = new RecordUtils(this.db)
-        const dbRecords = await recordUtils.findRecordsByTargetUri(
+        const dbRecords = await findRecordsByTargetUri(
+          this.db,
           uri,
           'social.pmsky.proposal',
           limit || 50,
@@ -137,9 +140,9 @@ export class ProposalsHydrator {
 
     // First try to get real votes from database
     let dbRatings: any[] = []
-    const recordUtils = new RecordUtils(this.db)
     // Look for vote records (includes both auto-ratings and manual ratings)
-    dbRatings = await recordUtils.findVotesByProposalsAndVoter(
+    dbRatings = await findVotesByProposalsAndVoter(
+      this.db,
       proposalUris,
       raterAid,
     )

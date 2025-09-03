@@ -1,7 +1,7 @@
 import { AtUri } from '@atproto/api'
-import { InvalidRequestError, XRPCError } from '@atproto/xrpc-server'
+import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../context'
-import { RecordUtils } from '../../../db/record-utils'
+import { findExistingProposalByUser, putRecord } from '../../../db/record-utils'
 import { Server } from '../../../lexicon'
 import {
   HandlerError,
@@ -16,6 +16,9 @@ import {
   normalizeAtUri,
 } from '../../../utils'
 import { resHeaders } from '../../util'
+import { vote } from './rateProposal'
+
+const syncProposalsToPds = false
 
 // Helper function to validate AT Protocol target URIs
 async function validateTargetUri(
@@ -109,7 +112,8 @@ async function validateTargetUri(
 export default function (server: Server, ctx: AppContext) {
   server.org.opencommunitynotes.createProposal({
     // Authentication is required for this endpoint
-    handler: withErrorHandling(async ({ input, req }) => {
+    handler: withErrorHandling(
+      async ({ input, req }) => {
         log.info(
           {
             typ: input.body.typ,
@@ -238,8 +242,8 @@ export default function (server: Server, ctx: AppContext) {
         // FUTURE: Validate target URI exists and is accessible via PDS
 
         // Check for duplicate notes by this user for this target with same label - use normalized URI
-        const recordUtils = new RecordUtils(ctx.db!)
-        const existingNote = await recordUtils.findExistingProposalByUser(
+        const existingNote = await findExistingProposalByUser(
+          ctx.db!,
           creatorAid,
           normalizedTargetUri,
           input.body.val,
@@ -299,7 +303,6 @@ export default function (server: Server, ctx: AppContext) {
         // )
 
         // Store proposal in local database
-        // await recordUtils.storeAtProtocolRecord(proposalRecord)
 
         // Create AT Protocol record via PDS using service account authentication
         const now = new Date().toISOString()
@@ -320,11 +323,11 @@ export default function (server: Server, ctx: AppContext) {
           cts: now,
         }
 
-        const putResult = await recordUtils.putRecord(ctx, {
+        const putResult = await putRecord(ctx, {
           collection: 'social.pmsky.proposal',
           rkey,
           record: proposalRecord,
-          syncToPds: true, // Always sync proposals to PDS
+          syncToPds: syncProposalsToPds, // Always sync proposals to PDS
         })
 
         if (!putResult.success || !putResult.uri) {
@@ -332,7 +335,7 @@ export default function (server: Server, ctx: AppContext) {
         }
 
         // Create auto-rating (author rates their own proposal as helpful)
-        const autoRatingResult = await recordUtils.vote(ctx, {
+        const autoRatingResult = await vote(ctx, {
           raterAid: creatorAid,
           proposalUri: putResult.uri,
           val: 1, // Helpful
@@ -375,7 +378,9 @@ export default function (server: Server, ctx: AppContext) {
           body: response,
           headers: resHeaders({}),
         } as HandlerSuccess
-    }, { endpoint: 'org.opencommunitynotes.createProposal' }),
+      },
+      { endpoint: 'org.opencommunitynotes.createProposal' },
+    ),
   })
 }
 

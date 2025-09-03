@@ -130,7 +130,6 @@ LOG_LEVEL=info
 
 # External Services
 PDS_URL=https://bsky.network
-SYNC_VOTES_TO_PDS=true
 
 # Database
 COMMUNITY_NOTES_DB_SQLITE_PATH=/litefs/community-notes.db
@@ -165,12 +164,9 @@ The new config system validates required variables in production:
 - `COMMUNITY_NOTES_DB_SQLITE_PATH`
 - `LABELER_DID`
 - `LABELER_SIGNING_KEY`
-
-**Optional Variables** (with corrected defaults):
-- `PORT` (default: 2595, production: 8081)
-- `NODE_ENV` (default: 'development', production: 'production')
-- `PDS_URL` (required, production: 'https://bsky.network')
-- `SYNC_VOTES_TO_PDS` (default: false)
+- `PORT`
+- `NODE_ENV`
+- `PDS_URL`
 
 ## File Structure
 
@@ -299,7 +295,6 @@ primary_region = 'sjc'
   PORT = '8081'
   LOG_LEVEL = 'info'
   PDS_URL = 'https://bsky.network'
-  SYNC_VOTES_TO_PDS = 'true'
   COMMUNITY_NOTES_DB_SQLITE_PATH = '/litefs/community-notes.db'
   SERVICE_ACCOUNT_DID = 'did:plc:actual-production-service-did'
   LABELER_DID = 'did:plc:actual-production-labeler-did'

@@ -44,14 +44,12 @@ export class NotesService {
   public repoAccount: ServiceAccount
   public feedGeneratorDid: string
   public pdsUrl: string
-  public syncVotesToPds: boolean
 
   constructor(private config: NotesServiceConfig) {
     this.repoAccount = config.repoAccount
 
     this.feedGeneratorDid = config.feedGeneratorDid
     this.pdsUrl = config.pdsUrl
-    this.syncVotesToPds = config.syncVotesToPds
   }
 
   static async create(config: NotesServiceConfig): Promise<NotesService> {
@@ -111,7 +109,6 @@ export class NotesService {
       repoAccount: this.repoAccount,
       feedGeneratorDid: this.feedGeneratorDid,
       pdsUrl: this.pdsUrl,
-      syncVotesToPds: this.syncVotesToPds,
       reqLabelers: () => ({}), // Mocked for now
       config: this.config,
     }

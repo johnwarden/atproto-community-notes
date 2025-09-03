@@ -1,4 +1,4 @@
-import { envBool, envInt, envStr } from '@atproto/common'
+import { envInt, envStr } from '@atproto/common'
 
 export interface ServiceAccount {
   did: string // Service DID (used for both identity and repository)
@@ -13,7 +13,6 @@ export interface NotesServiceConfig {
   repoAccount: ServiceAccount // Repository account for all records
   feedGeneratorDid: string // Feed generator document DID (service host)
   pdsUrl: string // PDS URL for AT Protocol record creation
-  syncVotesToPds: boolean // Enable syncing vote records to PDS
   labeler: LabelerConfig // Labeler service configuration
 }
 
@@ -24,7 +23,6 @@ export const readEnv = (): ServerEnvironment => {
     internalPort: envInt('INTERNAL_PORT'),
     nodeEnv: envStr('NODE_ENV'),
     pdsUrl: envStr('PDS_URL'),
-    syncVotesToPds: envBool('SYNC_VOTES_TO_PDS'),
 
     // database
     dbPath: envStr('DB_PATH'),
@@ -49,7 +47,6 @@ export type ServerEnvironment = {
   internalPort?: number
   nodeEnv?: string
   pdsUrl?: string
-  syncVotesToPds?: boolean
 
   // database
   dbPath?: string
@@ -127,7 +124,6 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     internalPort: env.internalPort,
     dbPath: env.dbPath,
     pdsUrl: env.pdsUrl!,
-    syncVotesToPds: env.syncVotesToPds ?? false,
     labeler: {
       did: env.labelerDid,
       url: env.labelerUrl,

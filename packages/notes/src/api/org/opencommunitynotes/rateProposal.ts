@@ -1,5 +1,9 @@
 import { AppContext } from '../../../context'
-import { RecordUtils } from '../../../db/record-utils'
+import {
+  getVoteRecord,
+  proposalExistsInDb,
+  putRecord,
+} from '../../../db/record-utils'
 import { Server } from '../../../lexicon'
 import {
   HandlerError,
@@ -7,12 +11,14 @@ import {
 } from '../../../lexicon/types/org/opencommunitynotes/rateProposal'
 import { httpLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
-import { generateAid } from '../../../utils'
+import { generateAid, generateVoteRkey } from '../../../utils'
+const syncVotesToPds = false
 
 export default function (server: Server, ctx: AppContext) {
   server.org.opencommunitynotes.rateProposal({
     // Authentication is required for this endpoint
-    handler: withErrorHandling(async ({ input, req }) => {
+    handler: withErrorHandling(
+      async ({ input, req }) => {
         log.info(
           {
             proposalUri: input.body.uri,
@@ -85,19 +91,16 @@ export default function (server: Server, ctx: AppContext) {
         }
 
         // Validate that the note exists in database
-        const recordUtils = new RecordUtils(ctx.db!)
-        const noteExistsInDb = await recordUtils.proposalExistsInDb(
-          input.body.uri,
-        )
+        const existsInDb = await proposalExistsInDb(ctx.db!, input.body.uri)
 
-        if (!noteExistsInDb) {
+        if (!existsInDb) {
           log.warn(
             {
               proposalUri: input.body.uri,
               raterDid,
               raterAid,
               checkedDb: !!ctx.db,
-              foundInDb: noteExistsInDb,
+              foundInDb: existsInDb,
             },
             'Note not found for rating',
           )
@@ -129,7 +132,7 @@ export default function (server: Server, ctx: AppContext) {
         }
 
         // Use unified vote function for all operations
-        const result = await recordUtils.vote(ctx, {
+        const result = await vote(ctx, {
           raterAid,
           proposalUri: input.body.uri,
           val: input.body.delete ? undefined : input.body.val,
@@ -156,7 +159,8 @@ export default function (server: Server, ctx: AppContext) {
           // For create/update, we need to fetch the created record to return details
           // This is what the client expects based on the existing API
           const serviceDid = ctx.repoAccount!.did
-          const voteRecord = await recordUtils.getVoteRecord(
+          const voteRecord = await getVoteRecord(
+            ctx.db,
             serviceDid,
             raterAid,
             input.body.uri,
@@ -183,6 +187,70 @@ export default function (server: Server, ctx: AppContext) {
             },
           } as HandlerSuccess
         }
-    }, { endpoint: 'org.opencommunitynotes.rateProposal' }),
+      },
+      { endpoint: 'org.opencommunitynotes.rateProposal' },
+    ),
   })
+}
+
+/**
+ * Insert/delete vote record and sync to PDS (if enabled)
+ */
+export async function vote(
+  ctx: AppContext,
+  params: {
+    raterAid: string
+    proposalUri: string
+    val?: number // undefined = delete
+    reasons?: string[]
+  },
+): Promise<{ success: boolean }> {
+  const { raterAid, proposalUri, val, reasons = [] } = params
+
+  const rkey = generateVoteRkey(raterAid, proposalUri)
+
+  // Create/update operation - build vote record
+  const now = new Date().toISOString()
+  const voteRecord = {
+    $type: 'social.pmsky.vote',
+    src: ctx.repoAccount.did,
+    uri: proposalUri,
+    val,
+    reasons,
+    aid: raterAid,
+    cts: now,
+  }
+
+  const result = await putRecord(ctx, {
+    collection: 'social.pmsky.vote',
+    rkey,
+    record: val === undefined ? undefined : voteRecord,
+    syncToPds: syncVotesToPds,
+  })
+
+  if (!result.success) {
+    log.info(
+      {
+        raterAid,
+        proposalUri,
+        val,
+        operation: val === undefined ? 'delete' : 'create_or_update',
+      },
+      'Vote operation failed - no record found to delete',
+    )
+    return { success: false }
+  }
+
+  log.info(
+    {
+      raterAid,
+      proposalUri,
+      val,
+      operation: val === undefined ? 'delete' : 'create_or_update',
+      syncToPds: syncVotesToPds,
+    },
+    'Vote operation completed successfully',
+  )
+
+  return { success: true }
 }

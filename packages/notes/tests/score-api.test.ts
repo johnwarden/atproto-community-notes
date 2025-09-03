@@ -22,12 +22,6 @@ describe('Score API', () => {
 
     // Create test users (Alice only for this test)
     users = await createTestUsers(network)
-
-    const scoresDbPath = 'test_labeler_integration' // Schema name serves as path identifier
-    assert.ok(
-      scoresDbPath && scoresDbPath.length > 0,
-      `Scores database path obtained - SCORES_DB_PATH must be non-empty. Got: ${scoresDbPath}`,
-    )
   })
 
   test('📝 Test 1: Create Test Post and Community Note', async () => {

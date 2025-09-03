@@ -108,7 +108,7 @@ The dev environment automatically:
      }' | jq .
 
    # Save the response values:
-   # - "did" → COMMUNITY_NOTES_SERVICE_ACCOUNT_DID
+   # - "did" → REPO_DID
    # - "accessJwt" → COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT
    # - "refreshJwt" → COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT
    ```
@@ -344,7 +344,7 @@ Before production deployment:
    cp env.example .env
 
    # Edit .env with your production values:
-   # - COMMUNITY_NOTES_SERVICE_ACCOUNT_DID
+   # - REPO_DID
    # - LABELER_DID
    # - PRIMARY_REGION
    ```
@@ -385,19 +385,13 @@ just deploy
 - `PORT=8081`
 - `LOG_LEVEL=info`
 - `PDS_URL=https://bsky.network`
-- `SYNC_VOTES_TO_PDS=true`
 - `DB_PATH=/litefs/notes.db`
-- `SCORES_DB_PATH=/litefs/scores.db`
 - `PRIMARY_REGION=sjc`
-- `COMMUNITY_NOTES_SERVICE_ACCOUNT_DID=did:plc:your-service-did`
+- `REPO_DID=did:plc:your-service-did`
 - `LABELER_DID=did:plc:your-labeler-did`
-
 **Secrets** (set via `just setup-secrets`):
 
-- `COMMUNITY_NOTES_SERVICE_ACCOUNT_PRIVATE_KEY`
-- `COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT`
-- `COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT`
-- `LABELER_SIGNING_KEY`
+TODO
 
 ## Management Commands
 
