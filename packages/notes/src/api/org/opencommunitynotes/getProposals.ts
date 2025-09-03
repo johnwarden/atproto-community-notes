@@ -1,5 +1,6 @@
 import { AuthRequiredError, InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../context'
+import { getHydratedProposals } from '../../../db/proposals'
 import { Server } from '../../../lexicon'
 import { httpLogger as log } from '../../../logger'
 import { generateAid, normalizeAtUri } from '../../../utils'
@@ -78,40 +79,16 @@ export default function (server: Server, ctx: AppContext) {
               normalizedUri = uri
             }
 
-            // Validate that scoresDb is available
-            if (!ctx.db) {
-              throw new Error('Database not available')
-            }
+            // Get hydrated proposals with single optimized query
+            const proposals = await getHydratedProposals(ctx, {
+              targetUri: normalizedUri,
+              viewerAid,
+              status,
+              label,
+              limit: explicitLimit,
+            })
 
-            const scoresDb = ctx.db
-
-            // Hydrate proposals with ratings using the normalized URI
-            const hydrationState = await ctx.hydrator.hydrateProposals(
-              normalizedUri,
-              scoresDb,
-              serviceDid,
-              servicePrivateKey,
-              viewerDid,
-              explicitLimit,
-            )
-
-            // Present proposals
-            const proposals = ctx.views.proposal(hydrationState)
-
-            // Apply filters
-            let filteredProposals = proposals
-            if (status) {
-              filteredProposals = filteredProposals.filter(
-                (p) => p.status === status,
-              )
-            }
-            if (label) {
-              filteredProposals = filteredProposals.filter(
-                (p) => p.val === label,
-              )
-            }
-
-            return filteredProposals
+            return proposals
           } catch (error) {
             log.error(
               {

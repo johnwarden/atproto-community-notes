@@ -1,8 +1,7 @@
 # Development Tips for ATProto Community Notes
 
 ## Essential Commands
-- `just build notes` - (or `just build dev-env`, etc.) Build the notes package after code changes, before testing
-- `just restart` - Always run this before testing changes against the dev-env
+- `just build notes` - (or `just build dev-env`, etc.) Build the notes package after code changes, before testing.
 - `just test notes` - Run tests (with timeout)
 - `just test notes notes-api.test.ts` - Run specific test file under the notes/tests
 - `just notes-db` - Access the notes database interactively

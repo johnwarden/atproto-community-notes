@@ -13,7 +13,7 @@ import rateProposal from './api/org/opencommunitynotes/rateProposal'
 import { AuthService } from './auth'
 import { createRouter as createBasicRouter } from './basic-routes'
 import { type NotesServiceConfig, type ServiceAccount } from './config'
-import { AppContext, Hydrator } from './context'
+import { AppContext } from './context'
 import { Database } from './db'
 import { registerFeedHandlers } from './feeds'
 import { createServer } from './lexicon'
@@ -21,7 +21,7 @@ import { httpLogger as log, loggerMiddleware } from './logger'
 import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
 import { createAuthenticatedPdsAgent } from './utils'
-import { Views } from './views'
+
 
 // Create scoring-specific logger
 const scoringLog = subsystemLogger('scoring')
@@ -96,14 +96,10 @@ export class NotesService {
 
     const server = createServer()
 
-    const hydrator = new Hydrator(this.db)
-    const views = new Views()
     const auth = new AuthService(this.config.pdsUrl)
     const authMiddleware = createAuthMiddleware(auth)
 
     const ctx: AppContext = {
-      hydrator,
-      views,
       auth,
       db: this.db,
       repoAccount: this.repoAccount,
