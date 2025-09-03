@@ -12,7 +12,12 @@
     "codegen": "pnpm run --sort --recursive --stream --parallel codegen",
     "test": "pnpm -r test",
     "dev": "pnpm --filter notes start",
-    "test:notes": "pnpm --filter notes test"
+    "test:notes": "pnpm --filter notes test",
+    "lint": "eslint . --ext .ts,.js,.tsx,.jsx",
+    "lint:fix": "eslint . --ext .ts,.js,.tsx,.jsx --fix",
+    "style": "prettier --check .",
+    "style:fix": "prettier --write .",
+    "format": "pnpm lint:fix && pnpm style:fix"
   },
   "devDependencies": {
     "pino-pretty": "^13.1.1",

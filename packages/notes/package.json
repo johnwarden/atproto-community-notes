@@ -24,12 +24,7 @@
     }
   },
   "scripts": {
-    "lint:fix": "pnpm lint --fix",
-    "lint": "eslint --plugin unused-imports --rule 'unused-imports/no-unused-imports: off' --rule '@typescript-eslint/no-unused-vars: off' --rule '@typescript-eslint/ban-types: warn' --quiet",
-    "style:fix": "prettier --write .",
-    "style": "prettier --check .",
-    "format": "pnpm lint:fix && pnpm style:fix",
-    "codegen": "lex gen-server --yes ./src/lexicon ./src/lexicon/org/opencommunitynotes/* ./src/lexicon/app/bsky/feed/* && pnpm lint --fix ./src/lexicon/**/*.ts",
+    "codegen": "lex gen-server --yes ./src/lexicon ./src/lexicon/org/opencommunitynotes/* ./src/lexicon/app/bsky/feed/* && eslint ./src/lexicon/**/*.ts --fix --rule '@typescript-eslint/no-unused-vars: off' --rule '@typescript-eslint/ban-types: warn'",
     "build": "tsc --build tsconfig.build.json",
     "start": "node dist/bin/server.js",
     "test": "../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts"

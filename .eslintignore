@@ -3,3 +3,4 @@ packages/lexicon-resolver/src/client
 packages/bsky/src/lexicon
 packages/pds/src/lexicon
 packages/ozone/src/lexicon
+packages/notes/src/lexicon

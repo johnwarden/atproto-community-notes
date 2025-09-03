@@ -46,7 +46,7 @@ lint PACKAGE="":
     if [ -n "{{PACKAGE}}" ]; then
         eslint "packages/{{PACKAGE}}" --ext .ts,.js,.tsx,.jsx
     else
-        eslint . --ext .ts,.js,.tsx,.jsx
+        pnpm lint
     fi
 
 style PACKAGE="" *ARGS:
@@ -54,18 +54,17 @@ style PACKAGE="" *ARGS:
     if [ -n "{{PACKAGE}}" ]; then
         prettier --check "packages/{{PACKAGE}}" {{ARGS}}
     else
-        prettier --check . {{ARGS}}
+        pnpm style {{ARGS}}
     fi
 
 # Format source files (lint --fix and prettier --write)
 format PACKAGE="" *ARGS:
     #!/usr/bin/env bash
     if [ -n "{{PACKAGE}}" ]; then
-        just lint --fix
+        eslint "packages/{{PACKAGE}}" --ext .ts,.js,.tsx,.jsx --fix
         prettier --write "packages/{{PACKAGE}}" {{ARGS}}
     else
-        just lint --fix
-        prettier --write . {{ARGS}}
+        pnpm format {{ARGS}}
     fi
 
 # verify

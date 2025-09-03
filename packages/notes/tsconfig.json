@@ -1,9 +1,7 @@
 {
-  "extends": "../../tsconfig/base.json",
+  "extends": "../../tsconfig/node.json",
   "compilerOptions": {
     "outDir": "dist",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
     "noUnusedLocals": false
   },
   "include": ["src"]
