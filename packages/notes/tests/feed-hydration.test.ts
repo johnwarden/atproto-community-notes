@@ -27,7 +27,7 @@ describe('Feed Hydration', () => {
 
     // Force Bsky service to process all pending indexing
     try {
-      await network.bsky.sub.processAll()
+      await network.network.processAll()
     } catch (error) {
       process.stderr.write(
         `⚠️ Error processing Bsky indexing: ${error.message}\n`,
@@ -164,7 +164,7 @@ describe('Feed Hydration', () => {
     let lastError: string | undefined
 
     try {
-      await network.bsky.sub.processAll()
+      await network.network.processAll()
     } catch (error) {
       process.stderr.write(
         `⚠️ Error processing Bsky indexing: ${error.message}\n`,

@@ -47,56 +47,30 @@ describe('Label Hydration', () => {
   })
 
   test('🏷️  Test 1: Default Labelers (No Header)', async () => {
-    // Wait for labels to be available (retry mechanism for timing issues)
-    let communityNotesLabels: any[] = []
-    let lastError: string | undefined
-
     // Force Bsky to sync from PDS
     try {
-      await network.bsky.sub.processAll()
+      await network.network.processAll()
     } catch (error) {
       process.stderr.write(`⚠️ Error during Bsky sync: ${error.message}`)
     }
 
     const maxAttempts = 5
+    let communityNotesLabels: any[] = []
+    let lastError: string | undefined
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const encodedUri = encodeURIComponent(testPostUri)
-
         const response = await fetch(
           `${network.bsky.url}/xrpc/app.bsky.feed.getPosts?uris=${encodedUri}`,
         )
 
-        if (response.ok) {
-          const responseContent = await response.json()
-
-          assert.ok(
-            !responseContent.error,
-            `Default request should not have error, got: ${responseContent.error}`,
-          )
-
-          if (responseContent.posts && responseContent.posts.length > 0) {
-            const defaultLabels = responseContent.posts[0].labels || []
-            communityNotesLabels = defaultLabels.filter(
-              (label: any) => label.src === labelerDid,
-            )
-
-            const labels = responseContent.posts[0].labels || []
-            communityNotesLabels = labels.filter(
-              (label: any) => label.src === labelerDid,
-            )
-
-            break
-          } else {
-            process.stderr.write(
-              `⚠️ [DEBUG] No posts found in response. Attempt ${attempt}\n`,
-            )
-          }
-        } else {
+        if (!response.ok) {
           const errorText = await response.text()
           lastError = `Request failed: ${response.status} - ${errorText}`
           process.stderr.write(`❌ [DEBUG] ${lastError}\n`)
 
+          // Try to parse error for more details
           try {
             const errorData = JSON.parse(errorText)
             if (errorData.error) {
@@ -108,6 +82,26 @@ describe('Label Hydration', () => {
             throw new Error(lastError)
           }
         }
+
+        const responseContent = await response.json()
+
+        assert.ok(
+          !responseContent.error,
+          `Default request should not have error, got: ${responseContent.error}`,
+        )
+
+        // Check if we have posts in the response
+        if (responseContent.posts && responseContent.posts.length > 0) {
+          const labels = responseContent.posts[0].labels || []
+          communityNotesLabels = labels.filter(
+            (label: any) => label.src === labelerDid,
+          )
+          break // Success - we have posts
+        } else {
+          process.stderr.write(
+            `⚠️ [DEBUG] No posts found in response. Attempt ${attempt}/${maxAttempts}\n`,
+          )
+        }
       } catch (error: any) {
         lastError = `Fetch failed: ${error.message}`
         throw error // Fail immediately on fetch errors
@@ -115,7 +109,7 @@ describe('Label Hydration', () => {
 
       if (attempt < maxAttempts) {
         process.stderr.write(`⏳ [DEBUG] Waiting before retry\n`)
-        await new Promise((resolve) => setTimeout(resolve, 1000)) // Use 0.1s delay like shell script
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
     }
 
@@ -126,64 +120,63 @@ describe('Label Hydration', () => {
   })
 
   test('🏷️  Test 2: With atproto-accept-labelers Header', async () => {
-    const encodedUri = encodeURIComponent(testPostUri)
-
-    let communityNotesLabels: any[] = []
-
-    try {
-      await network.bsky.sub.processAll()
-    } catch (error) {
-      process.stderr.write(`⚠️ Error during Bsky sync: ${error.message}`)
-    }
-
     // Force Bsky to sync from PDS
     try {
-      await network.bsky.sub.processAll()
+      await network.network.processAll()
     } catch (error) {
       process.stderr.write(`⚠️ Error during Bsky sync: ${error.message}`)
     }
 
     const maxAttempts = 5
+    let communityNotesLabels: any[] = []
+
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const response = await fetch(
-        `${network.bsky.url}/xrpc/app.bsky.feed.getPosts?uris=${encodedUri}`,
-        {
-          headers: {
-            'atproto-accept-labelers': labelerDid || '',
-          },
-        },
-      )
-
-      assert.ok(
-        response.ok,
-        `Request with atproto-accept-labelers should succeed: ${response.status}`,
-      )
-
-      let data: any
       try {
-        data = await response.json()
+        const encodedUri = encodeURIComponent(testPostUri)
+        const response = await fetch(
+          `${network.bsky.url}/xrpc/app.bsky.feed.getPosts?uris=${encodedUri}`,
+          {
+            headers: {
+              'atproto-accept-labelers': labelerDid || '',
+            },
+          },
+        )
+
+        assert.ok(
+          response.ok,
+          `Request with atproto-accept-labelers should succeed: ${response.status}`,
+        )
+
+        const data = await response.json()
+
+        assert.ok(
+          !data.error,
+          `Header request should not have error, got: ${data.error}`,
+        )
+
+        // Check if we have posts in the response
+        if (data.posts && data.posts.length > 0) {
+          const headerLabels = data.posts[0].labels || []
+          communityNotesLabels = headerLabels.filter(
+            (label: any) => label.src === labelerDid,
+          )
+
+          // If we have community notes labels, we're done
+          if (communityNotesLabels.length > 0) {
+            break
+          }
+
+          process.stderr.write(
+            `⚠️ [DEBUG] Posts found but no community notes labels yet. Attempt ${attempt}/${maxAttempts}\n`,
+          )
+        } else {
+          process.stderr.write(
+            `⚠️ [DEBUG] No posts found in response. Attempt ${attempt}/${maxAttempts}\n`,
+          )
+        }
       } catch (error: any) {
-        process.stderr.write(`🚨 JSON PARSE FAILED: ${error.message}\n`)
-        throw new Error(`Failed to parse response JSON: ${error.message}`)
-      }
-
-      assert.ok(
-        !data.error,
-        `Header request should not have error, got: ${data.error}`,
-      )
-
-      assert.ok(
-        data.posts && data.posts.length > 0,
-        'Response should contain posts',
-      )
-
-      const headerLabels = data.posts[0].labels || []
-      communityNotesLabels = headerLabels.filter(
-        (label: any) => label.src === labelerDid,
-      )
-
-      if (communityNotesLabels.length > 0) {
-        break
+        process.stderr.write(`🚨 FETCH FAILED: ${error.message}\n`)
+        throw new Error(`Failed to fetch posts with header: ${error.message}`)
       }
 
       if (attempt < maxAttempts) {
@@ -196,64 +189,16 @@ describe('Label Hydration', () => {
       communityNotesLabels.length > 0,
       'Community Notes labels should be included when atproto-accept-labelers header is set',
     )
-  })
 
-  test('🏷️  Test 3: Verify Label Content and Structure', async () => {
-    const encodedUri = encodeURIComponent(testPostUri)
-
-    let response: Response
-    try {
-      response = await fetch(
-        `${network.bsky.url}/xrpc/app.bsky.feed.getPosts?uris=${encodedUri}`,
-        {
-          headers: {
-            'atproto-accept-labelers': labelerDid || '',
-          },
-        },
-      )
-    } catch (error: any) {
-      process.stderr.write(`🚨 FETCH FAILED: ${error.message}\n`)
-      throw new Error(
-        `Failed to fetch posts for label verification: ${error.message}`,
-      )
-    }
-
-    assert.ok(
-      response.ok,
-      `Label verification request should succeed: ${response.status}`,
-    )
-
-    let data: any
-    try {
-      data = await response.json()
-    } catch (error: any) {
-      process.stderr.write(`🚨 JSON PARSE FAILED: ${error.message}\n`)
-      throw new Error(`Failed to parse response JSON: ${error.message}`)
-    }
-
-    assert.ok(
-      data.posts && data.posts.length > 0,
-      'Response should contain posts',
-    )
-
-    const labels = data.posts[0].labels || []
-    const communityLabels = labels.filter(
-      (label: any) => label.src === labelerDid,
-    )
-
-    if (communityLabels.length === 0) {
-      throw new Error(
-        'Community Notes labels found: false - No labels detected',
-      )
-    }
-
-    const labelValues = communityLabels.map((label: any) => label.val).sort()
+    const labelValues = communityNotesLabels
+      .map((label: any) => label.val)
+      .sort()
 
     // Check for expected label values
-    const hasNeedsContext = communityLabels.some(
+    const hasNeedsContext = communityNotesLabels.some(
       (label: any) => label.val === 'needs-context',
     )
-    const hasProposedNote = communityLabels.some(
+    const hasProposedNote = communityNotesLabels.some(
       (label: any) => label.val === 'proposed-label:needs-context',
     )
 
@@ -266,7 +211,7 @@ describe('Label Hydration', () => {
     }
   })
 
-  test('🏷️  Test 4: Header Parsing Functionality', async () => {
+  test('🏷️  Test 3: Header Parsing Functionality', async () => {
     const encodedUri = encodeURIComponent(testPostUri)
 
     // Test with example labeler only (should exclude Community Notes)
@@ -323,7 +268,7 @@ describe('Label Hydration', () => {
     )
   })
 
-  test('🗑️ Test 5: Label Deletion on Status Change', async () => {
+  test('🗑️ Test 4: Label Deletion on Status Change', async () => {
     // STEP 1: Change the existing proposal status to rated_not_helpful (should remove positive label)
     let deleteScoreSuccess: boolean
     try {
@@ -350,18 +295,11 @@ describe('Label Hydration', () => {
     )
 
     // STEP 2: Verify the proposal status was updated via API
-    let updatedProposalsData: any
-    try {
-      updatedProposalsData = await getProposals(
-        network,
-        users.alice,
-        testPostUri,
-      )
-    } catch (error: any) {
-      process.stderr.write(`🚨 GET PROPOSALS FAILED: ${error.message}\n`)
-      process.stderr.write(`🚨 Stack trace: ${error.stack}\n`)
-      throw new Error(`Failed to get updated proposals: ${error.message}`)
-    }
+    const updatedProposalsData = await getProposals(
+      network,
+      users.alice,
+      testPostUri,
+    )
 
     // Find the specific proposal we updated by URI
     const updatedProposal = updatedProposalsData.proposals?.find(
@@ -391,13 +329,13 @@ describe('Label Hydration', () => {
 
     // Force Bsky to process the label deletion
     try {
-      await network.bsky.sub.processAll()
+      await network.network.processAll()
     } catch (error: any) {
       process.stderr.write(`⚠️ Error during Bsky sync: ${error.message}\n`)
     }
 
     // STEP 3: Verify label deletion (implementing retry logic like shell script)
-    const maxAttempts = 3
+    const maxAttempts = 5
     let labelDeletionVerified = false
     let attempt = 1
 
@@ -419,19 +357,19 @@ describe('Label Hydration', () => {
 
         const labelsData = await labelsCheckResponse.json()
         const currentLabels = labelsData.posts?.[0]?.labels || []
-        const currentCommunityLabels = currentLabels.filter(
+        const currentCommunityNotesLabels = currentLabels.filter(
           (label: any) => label.src === labelerDid,
         )
 
         // Debug: Show all current labels
-        // currentCommunityLabels.forEach((label: any, index: number) => {
+        // currentCommunityNotesLabels.forEach((label: any, index: number) => {
         //   process.stderr.write(
         //     `  ${index + 1}. ${label.val} (src: ${label.src})\n`,
         //   )
         // })
 
         // Check if positive label (needs-context) is gone
-        const hasPositiveLabel = currentCommunityLabels.some(
+        const hasPositiveLabel = currentCommunityNotesLabels.some(
           (label: any) => label.val === 'needs-context',
         )
 
