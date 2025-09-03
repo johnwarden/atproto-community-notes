@@ -24,7 +24,10 @@ export async function getHydratedProposals(
 
   if (!ctx.db) {
     const error = new Error('Database not available')
-    log.error({ targetUri, viewerAid }, 'Database not available for getHydratedProposals')
+    log.error(
+      { targetUri, viewerAid },
+      'Database not available for getHydratedProposals',
+    )
     throw error
   }
 
@@ -47,8 +50,12 @@ export async function getHydratedProposals(
       .leftJoin('record as user_vote', (join) =>
         join
           .on('user_vote.collection', '=', 'social.pmsky.vote')
-          .on(sql`json_extract(user_vote.record, '$.uri')`, '=', sql.ref('record.uri'))
-          .on(sql`json_extract(user_vote.record, '$.aid')`, '=', viewerAid)
+          .on(
+            sql`json_extract(user_vote.record, '$.uri')`,
+            '=',
+            sql.ref('record.uri'),
+          )
+          .on(sql`json_extract(user_vote.record, '$.aid')`, '=', viewerAid),
       )
       .select([
         // Proposal fields
@@ -70,7 +77,9 @@ export async function getHydratedProposals(
     if (status) {
       if (status === 'needs_more_ratings') {
         // For needs_more_ratings, include proposals with no score record OR status = 'needs_more_ratings'
-        query = query.where(sql`(score.status IS NULL OR score.status = ${status})`)
+        query = query.where(
+          sql`(score.status IS NULL OR score.status = ${status})`,
+        )
       } else {
         // For other statuses, require exact match
         query = query.where('score.status', '=', status as any)
@@ -103,68 +112,80 @@ export async function getHydratedProposals(
     )
 
     // Transform results to ProposalView format
-    const proposals: ProposalView[] = results.map((row) => {
-      try {
-        const proposalRecord = JSON.parse(row.record)
-        
-        // Build the base proposal
-        const proposal: ProposalView = {
-          uri: row.uri,
-          cid: row.cid,
-          author: {
-            aid: proposalRecord.aid,
-            pseudonym: generatePseudonymFromAid(proposalRecord.aid),
-          },
-          typ: proposalRecord.typ,
-          targetUri: proposalRecord.uri,
-          val: proposalRecord.val,
-          reasons: proposalRecord.reasons || [],
-          note: proposalRecord.note,
-          cts: proposalRecord.cts,
-          status: (row.status as 'needs_more_ratings' | 'rated_helpful' | 'rated_not_helpful') || 'needs_more_ratings',
-          score: row.score || undefined,
-        }
+    const proposals: ProposalView[] = results
+      .map((row) => {
+        try {
+          const proposalRecord = JSON.parse(row.record)
 
-        // Add viewer rating if present
-        if (row.userRatingRecord) {
-          try {
-            const userRatingRecord = JSON.parse(row.userRatingRecord)
-            proposal.viewer = {
-              rating: {
-                val: userRatingRecord.val,
-                reasons: userRatingRecord.reasons || [],
-                uri: `at://${userRatingRecord.src}/social.pmsky.vote/${userRatingRecord.aid}_${Date.now()}`, // Reconstruct URI
-                createdAt: userRatingRecord.cts,
-                updatedAt: row.userRatingCreatedAt || undefined,
-              },
-            }
-          } catch (ratingParseError) {
-            log.warn(
-              {
-                proposalUri: row.uri,
-                viewerAid,
-                error: ratingParseError instanceof Error ? ratingParseError.message : 'Unknown error',
-              },
-              'Failed to parse user rating record, skipping rating data',
-            )
-            // Continue without rating data rather than failing the whole proposal
+          // Build the base proposal
+          const proposal: ProposalView = {
+            uri: row.uri,
+            cid: row.cid,
+            author: {
+              aid: proposalRecord.aid,
+              pseudonym: generatePseudonymFromAid(proposalRecord.aid),
+            },
+            typ: proposalRecord.typ,
+            targetUri: proposalRecord.uri,
+            val: proposalRecord.val,
+            reasons: proposalRecord.reasons || [],
+            note: proposalRecord.note,
+            cts: proposalRecord.cts,
+            status:
+              (row.status as
+                | 'needs_more_ratings'
+                | 'rated_helpful'
+                | 'rated_not_helpful') || 'needs_more_ratings',
+            score: row.score || undefined,
           }
-        }
 
-        return proposal
-      } catch (recordParseError) {
-        log.error(
-          {
-            proposalUri: row.uri,
-            viewerAid,
-            error: recordParseError instanceof Error ? recordParseError.message : 'Unknown error',
-          },
-          'Failed to parse proposal record, skipping proposal',
-        )
-        // Return null to filter out later
-        return null
-      }
-    }).filter((proposal): proposal is ProposalView => proposal !== null)
+          // Add viewer rating if present
+          if (row.userRatingRecord) {
+            try {
+              const userRatingRecord = JSON.parse(row.userRatingRecord)
+              proposal.viewer = {
+                rating: {
+                  val: userRatingRecord.val,
+                  reasons: userRatingRecord.reasons || [],
+                  uri: `at://${userRatingRecord.src}/social.pmsky.vote/${userRatingRecord.aid}_${Date.now()}`, // Reconstruct URI
+                  createdAt: userRatingRecord.cts,
+                  updatedAt: row.userRatingCreatedAt || undefined,
+                },
+              }
+            } catch (ratingParseError) {
+              log.warn(
+                {
+                  proposalUri: row.uri,
+                  viewerAid,
+                  error:
+                    ratingParseError instanceof Error
+                      ? ratingParseError.message
+                      : 'Unknown error',
+                },
+                'Failed to parse user rating record, skipping rating data',
+              )
+              // Continue without rating data rather than failing the whole proposal
+            }
+          }
+
+          return proposal
+        } catch (recordParseError) {
+          log.error(
+            {
+              proposalUri: row.uri,
+              viewerAid,
+              error:
+                recordParseError instanceof Error
+                  ? recordParseError.message
+                  : 'Unknown error',
+            },
+            'Failed to parse proposal record, skipping proposal',
+          )
+          // Return null to filter out later
+          return null
+        }
+      })
+      .filter((proposal): proposal is ProposalView => proposal !== null)
 
     log.info(
       {
@@ -181,7 +202,8 @@ export async function getHydratedProposals(
 
     return proposals
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error'
     log.error(
       {
         targetUri,
@@ -196,6 +218,8 @@ export async function getHydratedProposals(
     )
 
     // Re-throw with additional context
-    throw new Error(`Failed to get hydrated proposals for ${targetUri}: ${errorMessage}`)
+    throw new Error(
+      `Failed to get hydrated proposals for ${targetUri}: ${errorMessage}`,
+    )
   }
 }
