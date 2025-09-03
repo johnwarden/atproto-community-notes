@@ -193,11 +193,43 @@ dev_env_start() {
             return 1
         fi
 
-        # Check for "Dev environment ready" message
-        if process-compose process logs dev-env -n 20 2>/dev/null | grep -q "Dev environment ready"; then
+        # Get recent logs to check for success or failure
+        local recent_logs
+        recent_logs=$(process-compose process logs dev-env -n 50 2>/dev/null || echo "")
+
+        # Check for "Dev environment ready" message (success)
+        if echo "$recent_logs" | grep -q "Dev environment ready"; then
             sleep 1  # Let final logs show
             kill "$LOG_PID" 2>/dev/null || true
             break
+        fi
+
+        # Check for error patterns that indicate startup failure
+        if echo "$recent_logs" | grep -qE "(Error:|Failed to|❌.*Error|DuplicateProposal|EADDRINUSE|ECONNREFUSED)"; then
+            kill "$LOG_PID" 2>/dev/null || true
+            echo
+            log_error "Startup failed with errors detected in logs"
+            echo
+            echo "Recent error logs:"
+            echo "$recent_logs" | grep -E "(Error:|Failed to|❌.*Error|DuplicateProposal|EADDRINUSE|ECONNREFUSED)" | tail -5
+            echo
+            log_error "Use 'just process-logs' to see full logs, or 'just clean' to reset"
+            return 1
+        fi
+
+        # Check if the dev-env process has exited (indicates failure)
+        local process_status
+        process_status=$(process-compose process status dev-env 2>/dev/null | grep -o "Status: [^,]*" || echo "Status: Unknown")
+        if echo "$process_status" | grep -qE "(Status: Completed|Status: Error|Status: Failed)"; then
+            kill "$LOG_PID" 2>/dev/null || true
+            echo
+            log_error "Dev-env process exited unexpectedly: $process_status"
+            echo
+            echo "Recent logs:"
+            echo "$recent_logs" | tail -10
+            echo
+            log_error "Use 'just process-logs' to see full logs, or 'just clean' to reset"
+            return 1
         fi
 
         sleep 2
@@ -209,7 +241,13 @@ dev_env_start() {
 
     if [[ $count -ge $STARTUP_TIMEOUT ]]; then
         kill "$LOG_PID" 2>/dev/null || true
-        log_error "Timeout waiting for services to start"
+        echo
+        log_error "Timeout waiting for services to start (${STARTUP_TIMEOUT}s)"
+        echo
+        echo "Recent logs:"
+        process-compose process logs dev-env -n 20 2>/dev/null | tail -10 || true
+        echo
+        log_error "Use 'just process-logs' to see full logs, or 'just clean' to reset"
         return 1
     fi
 
