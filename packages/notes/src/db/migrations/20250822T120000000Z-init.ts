@@ -118,9 +118,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('id', 'integer', (col) =>
       col.primaryKey().autoIncrement().notNull(),
     )
-    .addColumn('scoreEventId', 'integer', (col) =>
-      col.references('scoreEvent.scoreEventId'),
-    ) // Nullable for proposed labels created before scoring
     .addColumn('targetUri', 'text', (col) => col.notNull())
     .addColumn('targetCid', 'text')
     .addColumn('labelValue', 'text', (col) => col.notNull())
@@ -128,7 +125,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute()
 
-  // Add unique constraint for pendingLabels (excluding scoreEventId since it can be NULL for proposed labels)
+  // Add unique constraint for pendingLabels
   await db.schema
     .createIndex('pendingLabels_unique_idx')
     .on('pendingLabels')
@@ -235,9 +232,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       AFTER INSERT ON record
       BEGIN
         -- Create proposed-label:[labelValue] immediately when proposal is created
-        INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
-        SELECT NULL, 
-               json_extract(NEW.record, '$.uri'),
+        INSERT INTO pendingLabels (targetUri, targetCid, labelValue, negative, createdAt)
+        SELECT json_extract(NEW.record, '$.uri'),
                json_extract(NEW.record, '$.cid'),
                'proposed-label:' || json_extract(NEW.record, '$.val'), 
                0, 
@@ -253,16 +249,16 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       BEGIN
         -- Case 1: Status changes TO rated_helpful (from anything else or nothing)
         -- Creates positive label: [labelValue]
-        INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
-        SELECT NEW.scoreEventId, NEW.targetUri, NEW.targetCid, NEW.labelValue, 0, datetime('now')
+        INSERT INTO pendingLabels (targetUri, targetCid, labelValue, negative, createdAt)
+        SELECT NEW.targetUri, NEW.targetCid, NEW.labelValue, 0, datetime('now')
         WHERE NEW.status = 'rated_helpful'
           AND (NOT EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri)
                OR EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri AND status != 'rated_helpful'));
 
         -- Case 2: Status changes FROM rated_helpful to something else
         -- Creates negative label: [labelValue]
-        INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
-        SELECT NEW.scoreEventId, NEW.targetUri, NEW.targetCid, NEW.labelValue, 1, datetime('now')
+        INSERT INTO pendingLabels (targetUri, targetCid, labelValue, negative, createdAt)
+        SELECT NEW.targetUri, NEW.targetCid, NEW.labelValue, 1, datetime('now')
         WHERE NEW.status != 'rated_helpful'
           AND EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri AND status = 'rated_helpful');
       END

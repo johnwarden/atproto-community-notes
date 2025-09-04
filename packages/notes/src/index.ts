@@ -27,7 +27,6 @@ const scoringLog = subsystemLogger('scoring')
 
 export interface PendingLabel {
   id: number
-  scoreEventId: number
   targetUri: string
   targetCid?: string
   labelValue: string
@@ -512,7 +511,6 @@ export class NotesService {
 
     return results.map((row) => ({
       id: row.id!,
-      scoreEventId: row.scoreEventId,
       targetUri: row.targetUri,
       targetCid: row.targetCid,
       labelValue: row.labelValue,
