@@ -1,8 +1,21 @@
-import { TestNetwork } from '@atproto/dev-env'
+import assert from 'node:assert'
+import getPort from 'get-port'
+import {
+  EXAMPLE_LABELER,
+  TestBsky,
+  TestNetwork,
+  TestOzone,
+  TestPds,
+  TestPlc,
+  mockNetworkUtilities,
+} from '@atproto/dev-env'
 import { generateMockSetup } from '@atproto/dev-env/dist/mock'
-import { createTestNotes } from '../test-notes'
+import { LexiconAuthorityProfile } from '@atproto/dev-env/dist/service-profile-lexicon'
+import { OzoneServiceProfile } from '@atproto/dev-env/dist/service-profile-ozone'
+import { TestNotes } from '../test-notes'
 import { IntrospectWrapper } from './introspect-wrapper'
 import { TestLabeler } from './test-labeler'
+// import { ServiceProfile } from '@atproto/dev-env/dist/service-profile'
 
 /**
  * Extended TestNetwork that adds support for Notes service and Labeler
@@ -24,38 +37,114 @@ export class TestNetworkWrapper {
       notes: { port: number; internalPort: number }
     },
   ): Promise<TestNetworkWrapper> {
-    // Extract notes-specific params
-    const { labeler, ...baseParams } = params
+    const labeler = params.labeler
 
-    // Create base network without modifications
-    const network = await TestNetwork.create(baseParams)
-    const wrapper = new TestNetworkWrapper(network)
+    const redisHost = process.env.REDIS_HOST
+    const dbPostgresUrl = params.dbPostgresUrl || process.env.DB_POSTGRES_URL
+    assert(dbPostgresUrl, 'Missing postgres url for tests')
+    assert(redisHost, 'Missing redis host for tests')
+    const dbPostgresSchema =
+      params.dbPostgresSchema || process.env.DB_POSTGRES_SCHEMA
 
-    // Add labeler if requested
-    wrapper.labeler = await TestLabeler.create({
-      port: labeler.port,
-      bskyDb: network.bsky.db, // Pass the actual bsky database connection
-      pdsUrl: network.pds.url, // Pass PDS URL for service account creation
+    const plc = await TestPlc.create(params.plc ?? {})
+
+    const bskyPort = params.bsky?.port ?? (await getPort())
+    const pdsPort = params.pds?.port ?? (await getPort())
+    const ozonePort = params.ozone?.port ?? (await getPort())
+
+    const thirdPartyPds = await TestPds.create({
+      didPlcUrl: plc.url,
+      ...params.pds,
+      inviteRequired: false,
+      port: await getPort(),
     })
 
-    // Add notes service if requested and labeler exists
-    if (wrapper.labeler) {
-      wrapper.notes = await createTestNotes({
-        port: baseParams.notes.port,
-        internalPort: baseParams.notes.internalPort,
-        plcUrl: network.plc.url,
-        pdsUrl: network.pds.url,
-        labelerDid: wrapper.labeler.labelerDid,
-        labelerUrl: wrapper.labeler.url,
-      })
-    }
+    const ozoneUrl = `http://localhost:${ozonePort}`
 
-    // Create enhanced introspection server that includes notes and labeler info
-    if (network.introspect) {
-      // Close the original introspect server
-      await network.introspect.close()
+    // @TODO (?) rework the ServiceProfile to live on a separate PDS instead of
+    // requiring to migrate to the main PDS
+    const ozoneServiceProfile = await OzoneServiceProfile.create(
+      thirdPartyPds,
+      ozoneUrl,
+    )
 
-      // Create our enhanced version
+    const lexiconAuthorityProfile =
+      await LexiconAuthorityProfile.create(thirdPartyPds)
+
+    const bsky = await TestBsky.create({
+      port: bskyPort,
+      plcUrl: plc.url,
+      pdsPort,
+      repoProvider: `ws://localhost:${pdsPort}`,
+      dbPostgresSchema: `appview_${dbPostgresSchema}`,
+      dbPostgresUrl,
+      redisHost,
+      modServiceDid: ozoneServiceProfile.did,
+      labelsFromIssuerDids: [EXAMPLE_LABELER],
+      ...params.bsky,
+    })
+
+    const pds = await TestPds.create({
+      port: pdsPort,
+      didPlcUrl: plc.url,
+      bskyAppViewUrl: bsky.url,
+      bskyAppViewDid: bsky.ctx.cfg.serverDid,
+      modServiceUrl: ozoneUrl,
+      modServiceDid: ozoneServiceProfile.did,
+      lexiconDidAuthority: lexiconAuthorityProfile.did,
+      ...params.pds,
+    })
+
+    const ozone = await TestOzone.create({
+      port: ozonePort,
+      plcUrl: plc.url,
+      signingKey: ozoneServiceProfile.key,
+      serverDid: ozoneServiceProfile.did,
+      dbPostgresSchema: `ozone_${dbPostgresSchema || 'db'}`,
+      dbPostgresUrl,
+      appviewUrl: bsky.url,
+      appviewDid: bsky.ctx.cfg.serverDid,
+      appviewPushEvents: true,
+      pdsUrl: pds.url,
+      pdsDid: pds.ctx.cfg.service.did,
+      verifierDid: ozoneServiceProfile.did,
+      verifierUrl: pds.url,
+      verifierPassword: 'temp',
+      ...params.ozone,
+    })
+
+    await lexiconAuthorityProfile.migrateTo(pds)
+    await lexiconAuthorityProfile.createRecords()
+
+    // await ozone.addAdminDid(ozoneServiceProfile.did)
+
+    mockNetworkUtilities(pds, bsky)
+    await thirdPartyPds.processAll()
+    await pds.processAll()
+    // await ozone.processAll()
+    await bsky.sub.processAll()
+    await thirdPartyPds.close()
+
+    const network = new TestNetwork(plc, pds, bsky, ozone, undefined)
+    const wrapper = new TestNetworkWrapper(network)
+
+    wrapper.labeler = await TestLabeler.create({
+      port: labeler.port,
+      bskyDb: bsky.db, // Pass the actual bsky database connection
+      pdsUrl: pds.url, // Pass PDS URL for service account creation
+    })
+
+    // Create notes service if configured
+    wrapper.notes = await TestNotes.create({
+      port: params.notes.port,
+      internalPort: params.notes.internalPort,
+      plcUrl: plc.url,
+      pdsUrl: pds.url,
+      labelerDid: wrapper.labeler.labelerDid,
+      labelerUrl: wrapper.labeler.url,
+    })
+
+    if (params.introspect?.port) {
       wrapper.introspectWrapper = await IntrospectWrapper.create(
         network,
         wrapper.notes,
@@ -277,12 +366,6 @@ export class TestNetworkWrapper {
     } else {
       throw new Error('Notes service not available')
     }
-    // TODO: Implement actual notes mock data generation
-    // This could include:
-    // - Sample community notes on posts
-    // - Sample ratings from users
-    // - Sample labeler responses
-    // - Feed generator records for notes
   }
 
   async close() {
