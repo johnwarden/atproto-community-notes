@@ -119,8 +119,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       col.primaryKey().autoIncrement().notNull(),
     )
     .addColumn('scoreEventId', 'integer', (col) =>
-      col.notNull().references('scoreEvent.scoreEventId'),
-    )
+      col.references('scoreEvent.scoreEventId'),
+    ) // Nullable for proposed labels created before scoring
     .addColumn('targetUri', 'text', (col) => col.notNull())
     .addColumn('targetCid', 'text')
     .addColumn('labelValue', 'text', (col) => col.notNull())
@@ -128,11 +128,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute()
 
-  // Add unique constraint for pendingLabels
+  // Add unique constraint for pendingLabels (excluding scoreEventId since it can be NULL for proposed labels)
   await db.schema
     .createIndex('pendingLabels_unique_idx')
     .on('pendingLabels')
-    .columns(['scoreEventId', 'labelValue', 'negative'])
+    .columns(['targetUri', 'labelValue', 'negative'])
     .unique()
     .execute()
 
@@ -229,20 +229,29 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // Create pending label creation triggers for external labeler sync
   // These triggers create pending labels that will be processed by NotesService
   try {
-    // Smart trigger: Create pending labels only on status changes
+    // Trigger 1: Create proposed-label immediately on proposal creation
     await sql`
-      CREATE TRIGGER create_pending_labels_on_score
+      CREATE TRIGGER create_proposed_label_on_proposal
+      AFTER INSERT ON record
+      BEGIN
+        -- Create proposed-label:[labelValue] immediately when proposal is created
+        INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
+        SELECT NULL, 
+               json_extract(NEW.record, '$.uri'),
+               json_extract(NEW.record, '$.cid'),
+               'proposed-label:' || json_extract(NEW.record, '$.val'), 
+               0, 
+               datetime('now')
+        WHERE NEW.collection = 'social.pmsky.proposal';
+      END
+    `.execute(db)
+
+    // Trigger 2: Create final labels only on status changes (no more proposed-label creation)
+    await sql`
+      CREATE TRIGGER create_final_labels_on_score
       AFTER INSERT ON scoreEvent
       BEGIN
-        -- Case 1: First time seeing proposal + needs_more_ratings
-        -- Creates proposed-label:[labelValue]
-        INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
-        SELECT NEW.scoreEventId, NEW.targetUri, NEW.targetCid,
-               'proposed-label:' || NEW.labelValue, 0, datetime('now')
-        WHERE NEW.status = 'needs_more_ratings'
-          AND NOT EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri);
-
-        -- Case 2: Status changes TO rated_helpful (from anything else or nothing)
+        -- Case 1: Status changes TO rated_helpful (from anything else or nothing)
         -- Creates positive label: [labelValue]
         INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
         SELECT NEW.scoreEventId, NEW.targetUri, NEW.targetCid, NEW.labelValue, 0, datetime('now')
@@ -250,7 +259,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
           AND (NOT EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri)
                OR EXISTS (SELECT 1 FROM score WHERE proposalUri = NEW.proposalUri AND status != 'rated_helpful'));
 
-        -- Case 3: Status changes FROM rated_helpful to something else
+        -- Case 2: Status changes FROM rated_helpful to something else
         -- Creates negative label: [labelValue]
         INSERT INTO pendingLabels (scoreEventId, targetUri, targetCid, labelValue, negative, createdAt)
         SELECT NEW.scoreEventId, NEW.targetUri, NEW.targetCid, NEW.labelValue, 1, datetime('now')
@@ -266,7 +275,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
   // Drop triggers first
-  await sql`DROP TRIGGER IF EXISTS create_pending_labels_on_score`.execute(db)
+  await sql`DROP TRIGGER IF EXISTS create_proposed_label_on_proposal`.execute(db)
+  await sql`DROP TRIGGER IF EXISTS create_final_labels_on_score`.execute(db)
   await sql`DROP TRIGGER IF EXISTS afterInsertOnScoreEvent`.execute(db)
 
   // Drop scoring indexes
