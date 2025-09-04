@@ -8,12 +8,21 @@ primary_region = 'sjc'
 
 [build]
 
-# Environment variables are set via --env flags in justfile deploy command
-# This ensures they can be easily customized without modifying this file
+[env]
+  NODE_ENV = 'production'
+  PORT = '8081'
+  INTERNAL_PORT = '8082'
+  PDS_URL = 'https://bsky.network'
+  DB_PATH = '/data/notes.db'
+  # DIDs will be set via deploy command or can be set here for production
+  # REPO_DID = 'did:plc:your-production-repo-did'
+  # FEEDGEN_DOCUMENT_DID = 'did:plc:your-production-feedgen-did'
+  # LABELER_DID = 'did:plc:your-production-labeler-did'
+  # LABELER_URL = 'https://labeler.example.com'
 
 [[services]]
   protocol = "tcp"
-  internal_port = 8080
+  internal_port = 8081
   processes = ["app"]
 
   [[services.ports]]
@@ -48,10 +57,7 @@ primary_region = 'sjc'
   cpu_kind = 'shared'
   cpus = 1
 
-# LiteFS configuration
-[experimental]
-  enable_consul = true
-
+# Persistent volume for database
 [[mounts]]
-  source = "litefs"
-  destination = "/litefs"
+  source = "notes_data"
+  destination = "/data"

@@ -34,30 +34,24 @@ WORKDIR services/notes
 # Uses assets from build stage to reduce build size
 FROM node:20.11-alpine
 
-RUN apk add --update dumb-init curl ca-certificates fuse3
+RUN apk add --update dumb-init curl ca-certificates
 
-# Install LiteFS
-RUN curl -L https://github.com/superfly/litefs/releases/latest/download/litefs-linux-amd64.tar.gz | tar xz -C /tmp
-RUN mv /tmp/litefs /usr/local/bin/
-
-# Create directories for LiteFS
-RUN mkdir -p /var/lib/litefs /litefs
+# Create data directory for database
+RUN mkdir -p /data
 
 # Avoid zombie processes, handle signal forwarding
 ENTRYPOINT ["dumb-init", "--"]
 
 WORKDIR /app/services/notes
 COPY --from=build /app /app
-COPY litefs.yml /app/services/notes/
 
-EXPOSE 8080
+EXPOSE 8081
 ENV PORT=8081
 ENV NODE_ENV=production
 
-# LiteFS needs to run as root for FUSE mounting
-# The Node.js app will run on port 8081, LiteFS proxies on 8080
-CMD ["litefs", "mount", "-config", "litefs.yml", "-exec", "node --heapsnapshot-signal=SIGUSR2 --enable-source-maps index.js"]
+# Run the Node.js application directly
+CMD ["node", "--heapsnapshot-signal=SIGUSR2", "--enable-source-maps", "index.js"]
 
-LABEL org.opencontainers.image.source=https://github.com/bluesky-social/atproto
+LABEL org.opencontainers.image.source=https://github.com/johnwarden/atproto-community-notes
 LABEL org.opencontainers.image.description="Community Notes Service"
 LABEL org.opencontainers.image.licenses=MIT

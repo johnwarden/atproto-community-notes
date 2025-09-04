@@ -2,114 +2,36 @@
 
 ## Overview
 
-This document outlines the comprehensive plan for deploying the Community Notes service to production using LiteFS for shared SQLite database access. The service provides both Community Notes API (XRPC endpoints) and AT Protocol Labeler functionality with trigger-based label creation.
+This document outlines the comprehensive plan for deploying the Community Notes service to production. This service is part of the atproto-community-notes project (https://github.com/johnwarden/atproto-community-notes).
 
 ## Architecture Overview
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Algorithm      │    │   LiteFS         │    │  Notes Service  │
-│  Service        │───▶│   Shared Volume  │◀───│                 │
-│  (Batch Writer) │    │                  │    │  (Query + Sign) │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ Cron Job        │    │ SQLite Database │    │ HTTP API        │
-│ (Every 6h)      │    │ /litefs/        │    │ Port 8080       │
-│                 │    │ community-      │    │                 │
-│                 │    │ notes.db        │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+The Community Notes system consists of three main services:
+
+- **Notes Service**: User-facing API for creating, rating, and reading proposals. Provides internal `/score` endpoint for scoring service
+- **Labeler Service**: AT Protocol labeler that creates and serves Community Notes labels  
+- **Scoring Service**: Runs algorithms to score proposals and calls Notes Service `/score` API to create labels
 
 ## Architecture Decisions
 
-### Service Structure
-- **Dual Service**: Notes service (HTTP API) + Algorithm service (batch processing)
-- **Shared Database**: Both services access same SQLite database via LiteFS
-- **Trigger-Based Labels**: Database triggers create label records, services sign on-demand
-- **Primary/Replica**: Notes service (primary), Algorithm service (replica)
-
-### Database Strategy
-- **LiteFS**: Distributed SQLite with FUSE mounting for multi-machine access
-- **Primary/Replica Pattern**: One primary writer, multiple readers
-- **Shared Volume**: Both services mount same LiteFS volume
-- **Trigger-Based**: Labels created by database triggers on status changes
-- **Lazy Signing**: Labels signed when first requested, not when created
-
-### Key Benefits of LiteFS
-1. **Multi-Machine SQLite**: True shared database across services
-2. **Low Latency**: Near real-time replication (< 100ms)
-3. **Fly.io Native**: Built-in Consul integration for leader election
-4. **FUSE Integration**: Transparent to applications (just a file path)
-5. **Automatic Failover**: Primary/replica with automatic promotion
-
 ### DID and Service Management
-- **Manual Setup**: Production service DID created manually (not auto-generated)
-- **Manual Registration**: Labeler registration handled manually
-- **Predictable**: Avoids runtime DID creation complexity in production
+- **Multi-DID Architecture**: Separate DIDs for repository account, feed generator document, and labeler
+- **Manual Setup**: Production DIDs created manually (not auto-generated)
+- **Manual Registration**: Labeler and feed generator registration handled manually
 
 ### Configuration System
 - **PDS-Style Pattern**: Uses `readEnv()` and `envToCfg()` pattern from AT Protocol services
-- **Environment Helpers**: Uses `@atproto/common` `envStr`, `envInt`, `envBool` helpers
+- **Environment Helpers**: Uses `@atproto/common` `envStr`, `envInt` helpers
 - **Validation**: Required variables validated in production, skipped in dev-env
 - **Override Support**: Dev-env can pass config overrides without modifying process.env
 - **Secret Management**: All secrets stored in Fly.io secrets, no .env files with secrets
 
-## Key Questions & Answers
-
-### Q: How do we set up LiteFS with Fly.io?
-
-**Answer**: LiteFS provides distributed SQLite access across multiple machines:
-
-1. **Install LiteFS**: Add to Dockerfile alongside the Node.js service
-2. **Configuration**: Create `litefs.yml` with FUSE mount and Consul settings
-3. **Primary Region**: Use `primary_region` in fly.toml for leader election
-4. **FUSE Mount**: LiteFS mounts at `/litefs`, applications access database normally
-
-### Q: How do we obtain SERVICE_ACCOUNT_ACCESS_JWT in production?
-
-**Answer**: The `SERVICE_ACCOUNT_ACCESS_JWT` is obtained through manual account creation:
-
-1. **Create User Account**: Manually create a user account in the target PDS
-2. **Login**: Use the account credentials to authenticate and get JWT tokens
-3. **Store Tokens**: Store `accessJwt` and `refreshJwt` in Fly.io secrets
-4. **Automatic Refresh**: The service automatically refreshes tokens using the refresh token
-
-### Q: Why can't we use SERVICE_ACCOUNT_DID for authentication?
-
-**Answer**: We CAN and SHOULD use `SERVICE_ACCOUNT_DID` for authentication! The service authenticates using its own DID.
-
-- **`SERVICE_ACCOUNT_DID`**: The service's DID (used for both labeling AND authentication)
-- **`SERVICE_ACCOUNT_USER_DID`**: Not needed - this was a misunderstanding from dev-env patterns
-
-**Correction**: The service should authenticate directly with its own DID, not create a separate user account.
-
-### Q: Why LABELER_SIGNING_KEY vs SERVICE_ACCOUNT_PRIVATE_KEY?
-
-**Answer**: Both are secp256k1 private keys (signing keys), just used for different purposes:
-
-- **`LABELER_SIGNING_KEY`**: Signs AT Protocol labels for content moderation
-- **`SERVICE_ACCOUNT_PRIVATE_KEY`**: Signs general service operations (AID generation, authentication, etc.)
-
-The terminology difference is just naming convention - both are cryptographic signing keys.
-
-### Q: How do we handle negative labels correctly?
-
-**Answer**: Database triggers create label records automatically on status transitions:
-
-1. **Status Changes**: Algorithm service writes to `statusEvent` table
-2. **Triggers Fire**: Database triggers detect status transitions and create label records
-3. **Label History**: All positive and negative labels preserved permanently
-4. **Lazy Signing**: Labels signed when first requested via `queryLabels`
-
-This ensures negative labels are created correctly when status changes FROM a labeled state.
-
-
+### Database Architecture
+- **Single SQLite Database**: No LiteFS - simplified single database approach
+- **Event-Sourced Labels**: Uses scoreEvent table for audit trail and label generation
+- **Database Triggers**: Automatic label creation via database triggers
 
 ## Configuration Management
-
-### Revised Configuration Strategy
 
 **No .env files with secrets**: All secrets stored in Fly.io secrets only.
 
@@ -117,84 +39,92 @@ This ensures negative labels are created correctly when status changes FROM a la
 
 **Justfile reads .env**: Uses `set dotenv-load := true` to read non-secret variables.
 
-### Updated Environment Variables
+### Environment Variables
 
-Based on the new PDS-style configuration system:
+Based on the new PDS-style configuration system and multi-DID architecture:
 
 #### Production (.env) - Non-Secret Variables Only
 ```bash
 # Service Configuration
 NODE_ENV=production
 PORT=8081
-LOG_LEVEL=info
+INTERNAL_PORT=8082
 
 # External Services
 PDS_URL=https://bsky.network
 
 # Database
-COMMUNITY_NOTES_DB_SQLITE_PATH=/litefs/community-notes.db
+DB_PATH=/data/notes.db
 
-# LiteFS Configuration
-PRIMARY_REGION=sjc
+# DIDs (public, not secrets)
+REPO_DID=did:plc:actual-production-repo-did
+FEEDGEN_DOCUMENT_DID=did:plc:actual-production-feedgen-did
+LABELER_DID=did:plc:actual-production-labeler-did
+
+# Labeler Service
+LABELER_URL=https://labeler.example.com
 ```
 
 #### Development Environment
+
 Development configuration is handled entirely by `dev-env` package - no .env file needed.
 
-### Fly.io Secrets (Only)
+#### Fly.io Secrets (Only)
 ```bash
-# Service Account Private Keys (NOT DIDs - DIDs are public)
-SERVICE_ACCOUNT_PRIVATE_KEY=actual-production-private-key-hex
-
-
+# Repository Account Credentials
+REPO_PRIVATE_KEY=...
+REPO_PASSWORD=...
 ```
 
-### Public Configuration (in fly.toml [env])
-```bash
-# DIDs are public, not secrets
-SERVICE_ACCOUNT_DID=did:plc:actual-production-service-did
-LABELER_DID=did:plc:actual-production-labeler-did
-```
+#### Required Environment Variables
+Per `config.ts`, these variables are required:
+- `PORT` - Main service port
+- `INTERNAL_PORT` - Internal API port  
+- `DB_PATH` - SQLite database path
+- `PDS_URL` - AT Protocol PDS URL
+- `REPO_DID` - Repository account DID
+- `REPO_PASSWORD` - Repository account password
+- `FEEDGEN_DOCUMENT_DID` - Feed generator document DID
+- `LABELER_DID` - Labeler service DID
+- `LABELER_URL` - Labeler service URL
 
 ### Configuration Validation
 
 The new config system validates required variables in production:
 
 **Required Variables** (validated unless `skipValidation=true`):
-- `COMMUNITY_NOTES_DB_SQLITE_PATH`
-- `LABELER_DID`
-- `LABELER_SIGNING_KEY`
-- `PORT`
-- `NODE_ENV`
-- `PDS_URL`
+- `PORT` - Main service port
+- `INTERNAL_PORT` - Internal API port
+- `DB_PATH` - Database file path
+- `PDS_URL` - AT Protocol PDS URL
+- `REPO_DID` - Repository account DID
+- `REPO_PASSWORD` - Repository account password
+- `FEEDGEN_DOCUMENT_DID` - Feed generator document DID
+- `LABELER_DID` - Labeler service DID
+- `LABELER_URL` - Labeler service URL
 
 ## File Structure
 
 ```
 services/notes/
 ├── DEPLOYMENT_PLAN.md          # This document
-├── TRIGGER_BASED_LABELING_DESIGN.md  # Label creation design
 ├── package.json                # Service dependencies
 ├── index.js                    # Main service entry point
-├── Dockerfile                  # Container configuration with LiteFS
+├── Dockerfile                  # Container configuration
 ├── fly.toml                    # Notes service Fly.io configuration
-├── litefs.yml                  # LiteFS configuration
 ├── justfile                    # Deployment commands
-├── .env                        # Development environment
-├── .env.production             # Production environment template
-├── .env.example                # Environment template
+├── env.example                 # Environment template
 └── README.md                   # Service documentation
 
-services/notes-algorithm/
-├── package.json                # Algorithm service dependencies
-├── index.js                    # Algorithm service entry point
-├── algorithm.js                # Stub algorithm implementation
-├── Dockerfile                  # Container configuration with LiteFS
-├── fly.toml                    # Algorithm service Fly.io configuration
-├── litefs.yml                  # LiteFS configuration
-├── justfile                    # Algorithm deployment commands
+services/scoring/               # Future: Scoring service
+├── package.json                # Scoring service dependencies
+├── index.js                    # Scoring service entry point
+├── algorithm.js                # Algorithm implementation
+├── Dockerfile                  # Container configuration
+├── fly.toml                    # Scoring service Fly.io configuration
+├── justfile                    # Scoring deployment commands
 ├── env.example                 # Environment template
-└── README.md                   # Algorithm service documentation
+└── README.md                   # Scoring service documentation
 ```
 
 ## Implementation Phases
@@ -218,24 +148,24 @@ services/notes-algorithm/
 - [x] Add secret management commands
 - [x] Add health check and testing commands
 
-### Phase 4: LiteFS Integration ✅ COMPLETED
-- [x] Update Dockerfile to include LiteFS
-- [x] Create `litefs.yml` configuration file
-- [x] Update `fly.toml` to use LiteFS mount
-- [x] Create `fly-algorithm.toml` for algorithm service
-- [x] Update database path to `/litefs/community-notes.db`
+### Phase 4: Multi-DID Architecture ✅ COMPLETED
+- [x] Implement repository account for all records
+- [x] Separate feed generator document DID
+- [x] Separate labeler actor DID
+- [x] Update configuration system for multi-DID
 
 ### Phase 5: Trigger-Based Labeling ✅ DESIGNED
 - [x] Design trigger-based label creation system
 - [x] Document negative label handling requirements
 - [x] Create database migration for label triggers
-- [x] Design lazy signing for query services
+- [x] Event-sourced scoreEvent table
 
-### Phase 6: Configuration Cleanup 🔄 NEEDS UPDATES
-- [ ] Update `.env` files (remove secrets, keep non-secret only)
-- [ ] Update `justfile` to read from single `.env` file
-- [ ] Remove `env.production` file (replaced by single `.env`)
-- [ ] Update `fly.toml` environment variables section
+### Phase 6: Configuration Cleanup 🔄 IN PROGRESS
+- [ ] Update `env.example` to match config.ts
+- [ ] Update `justfile` environment variables
+- [ ] Remove LiteFS references from all files
+- [ ] Update `fly.toml` configuration
+- [ ] Update `Dockerfile` to remove LiteFS
 
 ### Phase 7: Production Hardening (Future)
 - [ ] Document manual DID creation process
@@ -243,43 +173,22 @@ services/notes-algorithm/
 - [ ] Add monitoring and alerting
 - [ ] Add backup verification scripts
 
-## LiteFS Configuration Details
+## Database Configuration
 
-### litefs.yml Structure
-```yaml
-# LiteFS configuration for Community Notes Service
-# This enables shared SQLite database access across multiple machines
+### Single SQLite Database
+The Notes Service uses a single SQLite database without LiteFS:
 
-# FUSE mount directory for LiteFS
-fuse:
-  dir: "/litefs"
+- **Database Path**: `/data/notes.db` (persistent volume)
+- **Access Pattern**: Direct SQLite access (no replication)
+- **Concurrency**: WAL mode for better read/write performance
+- **Migrations**: Automatic migration on startup
 
-# Data directory where LiteFS stores its data
-data:
-  dir: "/var/lib/litefs"
-
-# Proxy configuration - LiteFS will proxy HTTP requests to the application
-proxy:
-  addr: ":8080"
-  target: "localhost:8081"
-  db: "community-notes.db"
-
-# Lease configuration using Fly.io's Consul
-lease:
-  type: "consul"
-  candidate: ${FLY_REGION == PRIMARY_REGION}
-  promote: true
-
-  consul:
-    url: "${FLY_CONSUL_URL}"
-    key: "litefs/${FLY_APP_NAME}"
-
-# No backup configuration - using LiteFS replication only
-
-# Logging
-log:
-  level: "info"
-```
+### Database Schema
+Key tables for the event-sourced label system:
+- `scoreEvent` - Immutable audit trail of scoring decisions
+- `score` - Current state derived from events  
+- `pendingLabels` - Labels awaiting sync to labeler service
+- `record` - Proposals and ratings from AT Protocol
 
 ### Fly.io Configuration Details
 
@@ -293,16 +202,17 @@ primary_region = 'sjc'
 [env]
   NODE_ENV = 'production'
   PORT = '8081'
-  LOG_LEVEL = 'info'
+  INTERNAL_PORT = '8082'
   PDS_URL = 'https://bsky.network'
-  COMMUNITY_NOTES_DB_SQLITE_PATH = '/litefs/community-notes.db'
-  SERVICE_ACCOUNT_DID = 'did:plc:actual-production-service-did'
+  DB_PATH = '/data/notes.db'
+  REPO_DID = 'did:plc:actual-production-repo-did'
+  FEEDGEN_DOCUMENT_DID = 'did:plc:actual-production-feedgen-did'
   LABELER_DID = 'did:plc:actual-production-labeler-did'
-  PRIMARY_REGION = 'sjc'
+  LABELER_URL = 'https://labeler.example.com'
 
 [[services]]
   protocol = "tcp"
-  internal_port = 8080
+  internal_port = 8081
   processes = ["app"]
 
   [[services.ports]]
@@ -337,96 +247,39 @@ primary_region = 'sjc'
 [deploy]
   strategy = "immediate"
 
-# LiteFS configuration
-[experimental]
-  enable_consul = true
-
+# Persistent volume for database
 [[mounts]]
-  source = "litefs"
-  destination = "/litefs"
+  source = "notes_data"
+  destination = "/data"
 ```
 
-#### Algorithm Service (fly-algorithm.toml)
-```toml
-app = 'notes-algorithm'
-primary_region = 'sjc'
-
-[build]
-
-[env]
-  NODE_ENV = 'production'
-  LOG_LEVEL = 'info'
-  COMMUNITY_NOTES_DB_SQLITE_PATH = '/litefs/community-notes.db'
-  PRIMARY_REGION = 'sjc'
-
-[[services]]
-  protocol = "tcp"
-  internal_port = 8082
-  processes = ["algorithm"]
-
-  [[services.ports]]
-    port = 8082
-    handlers = ["http"]
-
-  [[services.tcp_checks]]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "2s"
-    method = "GET"
-    path = "/health"
-
-[processes]
-  algorithm = "node algorithm-service.js"
-
-[deploy]
-  strategy = "immediate"
-
-[[vm]]
-  memory = '512mb'
-  cpu_kind = 'shared'
-  cpus = 1
-
-# LiteFS configuration - same as notes service
-[experimental]
-  enable_consul = true
-
-[[mounts]]
-  source = "litefs"
-  destination = "/litefs"
-
-# Schedule algorithm to run periodically
-[[cron]]
-  schedule = "0 */6 * * *"  # Every 6 hours
-  command = "node run-algorithm.js"
-```
+#### Scoring Service (Future)
+The scoring service will be deployed separately and will:
+- Read from the Notes Service database (read-only access)
+- Call the Notes Service `/score` endpoint to submit results
+- Run on a scheduled basis (e.g., every 6 hours)
 
 ### Dockerfile Configuration
 ```dockerfile
 FROM node:20.11-alpine
 
-RUN apk add --update dumb-init curl ca-certificates fuse3
-
-# Install LiteFS
-RUN curl -L https://github.com/superfly/litefs/releases/latest/download/litefs-linux-amd64.tar.gz | tar xz -C /tmp
-RUN mv /tmp/litefs /usr/local/bin/
-
-# Create directories for LiteFS
-RUN mkdir -p /var/lib/litefs /litefs
+RUN apk add --update dumb-init curl ca-certificates
 
 # Avoid zombie processes, handle signal forwarding
 ENTRYPOINT ["dumb-init", "--"]
 
 WORKDIR /app/services/notes
 COPY --from=build /app /app
-COPY litefs.yml /app/services/notes/
 
-EXPOSE 8080
+# Create data directory for database
+RUN mkdir -p /data
+
+EXPOSE 8081
 ENV PORT=8081
 ENV NODE_ENV=production
 
-# LiteFS needs to run as root for FUSE mounting
-# The Node.js app will run on port 8081, LiteFS proxies on 8080
-CMD ["litefs", "mount", "-config", "litefs.yml", "-exec", "node --heapsnapshot-signal=SIGUSR2 --enable-source-maps index.js"]
+# Run the Node.js application directly
+CMD ["node", "--heapsnapshot-signal=SIGUSR2", "--enable-source-maps", "index.js"]
 ```
 
 ### Justfile Commands (Revised)
@@ -439,14 +292,11 @@ CMD ["litefs", "mount", "-config", "litefs.yml", "-exec", "node --heapsnapshot-s
 
 #### Setup Commands
 - `just fly-setup`: Complete setup (app creation, secrets, volume, deploy)
-- `just setup-volume`: Create LiteFS storage volume
+- `just setup-volume`: Create persistent storage volume
 - `just setup-secrets`: Set all secrets from environment variables
-- `just setup-algorithm`: Deploy algorithm service
-- `just scale-single`: Ensure single machine deployment
 
 #### Deployment Commands
 - `just deploy`: Deploy notes service (no app flag needed)
-- `just deploy-algorithm`: Deploy algorithm service
 - `just restart`: Restart application
 - `just logs`: Show recent application logs
 
@@ -466,7 +316,7 @@ CMD ["litefs", "mount", "-config", "litefs.yml", "-exec", "node --heapsnapshot-s
 
 ## Deployment Steps
 
-### 1. Deploy Notes Service (Primary)
+### 1. Deploy Notes Service
 
 ```bash
 cd services/notes
@@ -474,61 +324,50 @@ fly deploy --config fly.toml
 ```
 
 This deploys:
-- **Notes Service**: HTTP API on port 8080
-- **LiteFS Primary**: Handles writes and replication
-- **Database**: `/litefs/community-notes.db`
+- **Notes Service**: HTTP API on port 8081
+- **Internal API**: Internal `/score` endpoint on port 8082
+- **Database**: `/data/notes.db` (persistent volume)
 
-### 2. Deploy Algorithm Service (Replica)
+### 2. Deploy Scoring Service (Future)
 
-```bash
-cd services/notes-algorithm
-fly deploy
-```
-
-This deploys:
-- **Algorithm Service**: Batch process with health endpoint
-- **LiteFS Replica**: Reads from primary, can write during batch windows
-- **Periodic Processing**: Runs algorithm every 6 hours
+The scoring service will be deployed separately and will:
+- Connect to Notes Service database for read-only access
+- Call Notes Service `/score` endpoint to submit results
+- Run on scheduled intervals
 
 ### 3. Environment Variables
 
 Set these secrets in Fly.io:
 
 ```bash
-# Required for both services
-fly secrets set SERVICE_ACCOUNT_DID="did:plc:actual-production-service-did"
-fly secrets set LABELER_DID="did:plc:actual-production-labeler-did"
-fly secrets set LABELER_SIGNING_KEY="your-signing-key"
-
-
+# Repository account credentials
+fly secrets set REPO_PRIVATE_KEY="your-repo-private-key"
+fly secrets set REPO_PASSWORD="your-repo-password"
 ```
 
 ### 4. Volume Setup
 
-LiteFS uses Fly.io volumes for persistence:
+Create persistent volume for database:
 
 ```bash
 # Create volume for Notes service
 cd services/notes
-fly volumes create litefs --region sjc --size 10
-
-# Create volume for Algorithm service
-cd services/notes-algorithm
-fly volumes create litefs --region sjc --size 10
+fly volumes create notes_data --region sjc --size 10
 ```
 
 ## Database Access Pattern
 
-### Notes Service (Primary)
-- **Reads**: Direct SQLite access via LiteFS FUSE mount
-- **Writes**: Only for signing labels (updates `labels.sig`)
-- **Port**: 8080 (LiteFS proxy) → 8081 (Node.js app)
+### Notes Service
+- **Reads**: Direct SQLite access to `/data/notes.db`
+- **Writes**: All user operations (proposals, ratings) and label sync
+- **Ports**: 8081 (main API), 8082 (internal `/score` endpoint)
+- **Concurrency**: WAL mode for better read/write performance
 
-### Algorithm Service (Replica)
-- **Reads**: Replicated data from primary
-- **Writes**: Batch writes to `statusEvent` table
-- **Schedule**: Every 6 hours via cron job
-- **Health**: Port 8082 for monitoring
+### Scoring Service (Future)
+- **Reads**: Read-only access to Notes Service database
+- **API Calls**: Calls Notes Service `/score` endpoint to submit results
+- **Schedule**: Periodic execution (e.g., every 6 hours)
+- **Independence**: Separate deployment, connects via HTTP API
 
 ## Health Checks and Monitoring
 
@@ -562,30 +401,33 @@ curl https://notes.fly.dev/health
 curl https://notes-algorithm.fly.dev/health
 ```
 
-#### LiteFS Status
+#### Database Status
 
 ```bash
 # SSH into container
 fly ssh console
 
-# Check LiteFS status
-litefs status
+# Check database file
+ls -la /data/
 
-# View LiteFS logs
-tail -f /var/log/litefs.log
+# Check database health
+sqlite3 /data/notes.db "SELECT COUNT(*) FROM sqlite_master;"
 ```
 
 #### Database Verification
 
 ```bash
 # Connect to database
-sqlite3 /litefs/community-notes.db
+sqlite3 /data/notes.db
 
-# Check recent status events
-SELECT * FROM statusEvent ORDER BY statusEventTime DESC LIMIT 10;
+# Check recent score events
+SELECT * FROM scoreEvent ORDER BY createdAt DESC LIMIT 10;
 
-# Check label creation
-SELECT * FROM labels ORDER BY cts DESC LIMIT 10;
+# Check pending labels
+SELECT * FROM pendingLabels ORDER BY createdAt DESC LIMIT 10;
+
+# Check recent proposals
+SELECT * FROM record WHERE collection = 'social.pmsky.proposal' ORDER BY indexedAt DESC LIMIT 10;
 ```
 
 ## Manual Setup Procedures
@@ -637,19 +479,19 @@ The new configuration system follows the PDS pattern:
 ## Scaling Considerations
 
 ### Horizontal Scaling
-- **Notes Service**: Can scale to multiple replicas (all read-only)
-- **Algorithm Service**: Should remain single instance (batch writer)
-- **Database**: Single primary, multiple replicas via LiteFS
+- **Notes Service**: Single instance with persistent volume
+- **Scoring Service**: Single instance, calls Notes Service API
+- **Database**: Single SQLite file with WAL mode for concurrency
 
 ### Performance
 - **Read Performance**: Excellent (local SQLite access)
-- **Write Performance**: Good (single primary writer)
-- **Replication Lag**: < 100ms between primary and replicas
+- **Write Performance**: Good (WAL mode, single writer)
+- **API Performance**: Internal `/score` endpoint for scoring service
 
 ### Data Persistence
-- **LiteFS Replication**: Primary/replica pattern for data durability
-- **Volume Storage**: Persistent Fly.io volumes for database files
-- **Automatic Failover**: Primary promotion if current primary fails
+- **Persistent Volume**: Fly.io volume mounted at `/data`
+- **Database Backups**: Regular SQLite backups (future enhancement)
+- **Event Sourcing**: Complete audit trail via scoreEvent table
 
 ## Security Considerations
 
@@ -676,7 +518,7 @@ The new configuration system follows the PDS pattern:
 ## Dependencies
 
 ### Package Dependencies
-- `@atproto/notes`: Main service package
+- `@atproto/notes`: Main service package (workspace dependency)
 - `@atproto/common`: Environment variable helpers
 - Standard Node.js runtime dependencies
 
@@ -694,31 +536,29 @@ The new configuration system follows the PDS pattern:
 
 ## Summary of Key Changes
 
-### ✅ Questions Answered & Addressed
+### ✅ Architecture Decisions Implemented
 
-1. **LiteFS Setup**: Complete configuration with shared SQLite database access
-2. **SERVICE_ACCOUNT_ACCESS_JWT**: Manual account creation process documented
-3. **DID Differences**: SERVICE_ACCOUNT_DID vs SERVICE_ACCOUNT_USER_DID explained
-4. **Key Differences**: Labeler signing key vs service private key purposes clarified
-5. **Environment Variables**: Non-secrets in fly.toml, secrets in Fly.io secrets only
-6. **APP_NAME**: Hardcoded in fly.toml, no --app flags needed
-7. **Configuration Strategy**: Single .env with non-secrets, justfile reads via dotenv-load
-8. **Negative Labels**: Trigger-based system ensures correct negative label creation
+1. **Multi-DID Architecture**: Repository account, feed generator document DID, and labeler DID
+2. **Single Database**: Simplified SQLite approach without LiteFS complexity
+3. **Event-Sourced Labels**: scoreEvent table provides complete audit trail
+4. **PDS-Style Configuration**: Environment validation and config patterns
+5. **Internal API**: `/score` endpoint for scoring service integration
+6. **Trigger-Based Labels**: Database triggers handle label creation automatically
 
 ### 🔄 Implementation Status
 
 - **Phases 1-3**: ✅ Completed (basic service structure and deployment)
-- **Phase 4**: ✅ Completed (LiteFS integration)
-- **Phase 5**: ✅ Designed (trigger-based labeling)
-- **Phase 6**: 🔄 Needs configuration cleanup
+- **Phase 4**: ✅ Completed (multi-DID architecture)
+- **Phase 5**: ✅ Completed (trigger-based labeling)
+- **Phase 6**: 🔄 In Progress (configuration cleanup)
 - **Phase 7**: Future production hardening
 
 ### 🎯 Next Steps
 
-1. **Implement trigger-based labeling** with database migrations
-2. **Update existing files** for configuration cleanup
-3. **Test deployment** with new LiteFS configuration
-4. **Document manual setup procedures** for production DIDs and accounts
-5. **Implement monitoring** and health checks
+1. **Update configuration files** to match new architecture
+2. **Remove LiteFS references** from all deployment files
+3. **Test deployment** with simplified database approach
+4. **Document manual DID setup** for production
+5. **Create scoring service** deployment (future)
 
-The service architecture is now ready for production with LiteFS-based shared database access and proper trigger-based label creation!
+The service architecture is now simplified and ready for production with a single SQLite database and clear service separation!

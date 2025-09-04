@@ -12,12 +12,13 @@ env:
     @echo "🔧 Environment variables status:"
     @echo "NODE_ENV: ${NODE_ENV:-'not set'}"
     @echo "PORT: ${PORT:-'not set'}"
-    @echo "LOG_LEVEL: ${LOG_LEVEL:-'not set'}"
+    @echo "INTERNAL_PORT: ${INTERNAL_PORT:-'not set'}"
     @echo "PDS_URL: ${PDS_URL:-'not set'}"
     @echo "DB_PATH: ${DB_PATH:-'not set'}"
-    @echo "PRIMARY_REGION: ${PRIMARY_REGION:-'not set'}"
     @echo "REPO_DID: ${REPO_DID:-'not set'}"
+    @echo "FEEDGEN_DOCUMENT_DID: ${FEEDGEN_DOCUMENT_DID:-'not set'}"
     @echo "LABELER_DID: ${LABELER_DID:-'not set'}"
+    @echo "LABELER_URL: ${LABELER_URL:-'not set'}"
 
 
 # One-command health check of everything
@@ -29,20 +30,20 @@ health:
     @curl -s "https://notes.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
 
 
-# === LiteFS Setup ===
+# === Database Setup ===
 
-# Set up LiteFS volume for Notes service (required for shared database)
-setup-litefs-volume:
-    @echo "💾 Setting up LiteFS volume for Notes service..."
+# Set up persistent volume for Notes service database
+setup-volume:
+    @echo "💾 Setting up persistent volume for Notes service..."
     @echo "📊 Creating 10GB volume in sjc region..."
-    fly volumes create litefs --region sjc --size 10
-    @echo "✅ LiteFS volume created successfully!"
-    @echo "💡 Volume will be mounted at /litefs in the container"
+    fly volumes create notes_data --region sjc --size 10
+    @echo "✅ Persistent volume created successfully!"
+    @echo "💡 Volume will be mounted at /data in the container"
 
-# Check LiteFS status
-litefs-status:
-    @echo "🔍 Checking LiteFS status..."
-    fly ssh console --command "litefs status"
+# Check database status
+db-status:
+    @echo "🔍 Checking database status..."
+    fly ssh console --command "ls -la /data/ && sqlite3 /data/notes.db 'SELECT COUNT(*) FROM sqlite_master;'"
 
 # === Deployment & Management ===
 
@@ -55,30 +56,25 @@ setup-secrets:
     @echo "🔑 Setting up secrets for Notes service..."
     @echo "⚠️  You will be prompted to paste each secret. Secrets are never saved to files."
     @echo ""
-    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_PRIVATE_KEY:"
-    @read -s PRIVATE_KEY && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_PRIVATE_KEY="$$PRIVATE_KEY"
-    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT:"
-    @read -s ACCESS_JWT && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_ACCESS_JWT="$$ACCESS_JWT"
-    @echo "📝 Please paste your COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT:"
-    @read -s REFRESH_JWT && fly secrets set COMMUNITY_NOTES_SERVICE_ACCOUNT_REFRESH_JWT="$$REFRESH_JWT"
-    @echo "📝 Please paste your LABELER_SIGNING_KEY:"
-    @read -s SIGNING_KEY && fly secrets set LABELER_SIGNING_KEY="$$SIGNING_KEY"
+    @echo "📝 Please paste your REPO_PRIVATE_KEY:"
+    @read -s PRIVATE_KEY && fly secrets set REPO_PRIVATE_KEY="$$PRIVATE_KEY"
+    @echo "📝 Please paste your REPO_PASSWORD:"
+    @read -s PASSWORD && fly secrets set REPO_PASSWORD="$$PASSWORD"
     @echo "✅ All secrets configured securely for Notes service!"
 
 # Deploy Notes service to Fly.io
 deploy:
     @echo "🚀 Deploying Notes service..."
     fly deploy \
-        --env NODE_ENV=${NODE_ENV}} \
+        --env NODE_ENV=${NODE_ENV} \
         --env PORT=${PORT} \
         --env INTERNAL_PORT=${INTERNAL_PORT} \
-        --env LOG_LEVEL=${LOG_LEVEL} \
         --env PDS_URL=${PDS_URL} \
         --env DB_PATH=${DB_PATH} \
-        --env PRIMARY_REGION=${PRIMARY_REGION:-sjc} \
         --env REPO_DID=${REPO_DID} \
-        --env LABELER_DID=${LABELER_DID}
-        --env FEEDGEN_DOCUMENT_DID=${FEEDGEN_DOCUMENT_DID}
+        --env FEEDGEN_DOCUMENT_DID=${FEEDGEN_DOCUMENT_DID} \
+        --env LABELER_DID=${LABELER_DID} \
+        --env LABELER_URL=${LABELER_URL}
 
 # Deploy with custom environment variables (for advanced usage)
 deploy-env *ARGS:
@@ -92,8 +88,8 @@ fly-setup:
     fly apps create notes
     @echo "2️⃣ Setting secrets from environment..."
     just setup-secrets
-    @echo "3️⃣ Creating LiteFS volume..."
-    just setup-litefs-volume
+    @echo "3️⃣ Creating persistent volume..."
+    just setup-volume
     @echo "4️⃣ Deploying application..."
     just deploy
     @echo "✅ Notes service deployment complete!"
@@ -120,28 +116,26 @@ logs:
 # === Database Management ===
 
 # Connect to production notes database via SSH
-db-connect-db:
+db-connect:
     @echo "🗄️ Connecting to production notes database..."
     fly ssh console --command "sqlite3 ${DB_PATH}"
 
-# Check database status
-db-status:
-    @echo "🗄️ Checking database status..."
-    fly ssh console --command "ls -la /litefs/"
-    @echo "📊 Notes database:"
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT COUNT(*) as total_records FROM sqlite_master;'"
+# Show recent score events
+db-score-events:
+    @echo "🗄️ Recent score events..."
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM scoreEvent ORDER BY createdAt DESC LIMIT 10;'"
 
-# Show recent status events
-db-status-events:
-    @echo "🗄️ Recent status events..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM statusEvent ORDER BY statusEventTime DESC LIMIT 10;'"
-
-# Show recent labels
-db-labels:
-    @echo "🗄️ Recent labels..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM labels ORDER BY cts DESC LIMIT 10;'"
+# Show pending labels
+db-pending-labels:
+    @echo "🗄️ Pending labels..."
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM pendingLabels ORDER BY createdAt DESC LIMIT 10;'"
 
 # Show recent proposals
 db-proposals:
     @echo "🗄️ Recent proposals..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record ORDER BY indexedAt DESC LIMIT 10;'"
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record WHERE collection = \"social.pmsky.proposal\" ORDER BY indexedAt DESC LIMIT 10;'"
+
+# Show recent ratings
+db-ratings:
+    @echo "🗄️ Recent ratings..."
+    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record WHERE collection = \"social.pmsky.rating\" ORDER BY indexedAt DESC LIMIT 10;'"
