@@ -296,7 +296,7 @@ export class TestNetworkWrapper {
 
           try {
             const scoreResponse = await fetch(
-              `${this.notes.internalUrl}/internal/score`,
+              `${this.notes.internalUrl}/score`,
               {
                 method: 'POST',
                 headers: {
@@ -332,7 +332,7 @@ export class TestNetworkWrapper {
 
           try {
             const scoreResponse = await fetch(
-              `${this.notes?.internalUrl}/internal/score`,
+              `${this.notes?.internalUrl}/score`,
               {
                 method: 'POST',
                 headers: {

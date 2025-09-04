@@ -211,7 +211,7 @@ export async function setProposalScore(
 ): Promise<boolean> {
   try {
     const response = await fetch(
-      `${network.notes?.internalUrl}/internal/score`,
+      `${network.notes?.internalUrl}/score`,
       {
         method: 'POST',
         headers: {

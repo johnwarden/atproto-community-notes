@@ -274,7 +274,7 @@ set_proposal_score() {
     local status="$2"
     local score="$3"
 
-    local response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_INTERNAL_URL/internal/score" \
+    local response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_INTERNAL_URL/score" \
         -H "Content-Type: application/json" \
         -d "{\"proposalUri\": \"$proposal_uri\", \"status\": \"$status\", \"score\": $score}")
 

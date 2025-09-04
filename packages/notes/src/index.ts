@@ -147,7 +147,7 @@ export class NotesService {
     internalApp.use(json())
 
     // Internal API endpoint for scoring
-    internalApp.post('/internal/score', async (req, res) => {
+    internalApp.post('/score', async (req, res) => {
       const startTime = Date.now()
 
       log.debug('Set score called', { body: req.body })
