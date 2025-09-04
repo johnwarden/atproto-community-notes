@@ -69,9 +69,6 @@ echo "Labler did: $LABELER_DID, $BSKY_SERVICE_URL, $TEST_POST_URI" > /dev/stderr
 HEADER_RESPONSE=$(curl -s "$BSKY_SERVICE_URL/xrpc/app.bsky.feed.getPosts?uris=$TEST_POST_URI" \
   -H "atproto-accept-labelers: $LABELER_DID" || echo '{"posts":[]}')
 
-debug "Header response"
-debug $HEADER_RESPONSE
-
 HEADER_ERROR=$(echo "$HEADER_RESPONSE" | jq -r '.error // null')
 if [ "$HEADER_ERROR" != "null" ]; then
     test_result "Header request failed" "false" "Error: $HEADER_ERROR"
@@ -79,7 +76,6 @@ fi
 
 HEADER_LABELS=$(echo "$HEADER_RESPONSE" | jq '.posts[0].labels // []' 2>/dev/null || echo '[]')
 
-debug "Header labels: $HEADER_LABELS"
 HEADER_LABELS_COUNT=$(echo "$HEADER_LABELS" | jq 'length' 2>/dev/null || echo 0)
 
 # Check if any labels are from Community Notes Labeler DID
