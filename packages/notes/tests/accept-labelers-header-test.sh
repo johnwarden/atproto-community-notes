@@ -101,7 +101,7 @@ LABEL_VALUES=$(echo "$COMMUNITY_LABELS" | jq -r '.[].val' 2>/dev/null | sort | t
 if [ -n "$LABEL_VALUES" ] && [ "$LABEL_VALUES" != " " ]; then
     # Check for expected label values
     HAS_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "needs-context")' 2>/dev/null || echo false)
-    HAS_PROPOSED_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "proposed-label:needs-context")' 2>/dev/null || echo false)
+    HAS_PROPOSED_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "proposal:label:needs-context")' 2>/dev/null || echo false)
 
     if [ "$HAS_NOTE" = "true" ] || [ "$HAS_PROPOSED_NOTE" = "true" ]; then
         test_result "Post has expected Community Notes labels" "true"

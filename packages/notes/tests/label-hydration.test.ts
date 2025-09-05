@@ -199,14 +199,14 @@ describe('Label Hydration', () => {
       (label: any) => label.val === 'needs-context',
     )
     const hasProposedNote = communityNotesLabels.some(
-      (label: any) => label.val === 'proposed-label:needs-context',
+      (label: any) => label.val === 'proposal:label:needs-context',
     )
 
     if (hasNeedsContext || hasProposedNote) {
       assert.ok(true, 'Post has expected Community Notes labels')
     } else {
       throw new Error(
-        `Post has unexpected label values: ${labelValues.join(', ')}. Expected: needs-context or proposed-label:needs-context`,
+        `Post has unexpected label values: ${labelValues.join(', ')}. Expected: needs-context or proposal:label:needs-context`,
       )
     }
   })

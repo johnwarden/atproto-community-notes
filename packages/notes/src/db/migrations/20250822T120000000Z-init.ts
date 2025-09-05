@@ -226,23 +226,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // Create pending label creation triggers for external labeler sync
   // These triggers create pending labels that will be processed by NotesService
   try {
-    // Trigger 1: Create proposed-label immediately on proposal creation
+    // Trigger 1: Create proposal:label immediately on proposal creation
     await sql`
       CREATE TRIGGER create_proposed_label_on_proposal
       AFTER INSERT ON record
       BEGIN
-        -- Create proposed-label:[labelValue] immediately when proposal is created
+        -- Create proposal:label:[labelValue] immediately when proposal is created
         INSERT INTO pendingLabels (targetUri, targetCid, labelValue, negative, createdAt)
         SELECT json_extract(NEW.record, '$.uri'),
                json_extract(NEW.record, '$.cid'),
-               'proposed-label:' || json_extract(NEW.record, '$.val'), 
+               'proposal:label:' || json_extract(NEW.record, '$.val'), 
                0, 
                datetime('now')
         WHERE NEW.collection = 'social.pmsky.proposal';
       END
     `.execute(db)
 
-    // Trigger 2: Create final labels only on status changes (no more proposed-label creation)
+    // Trigger 2: Create final labels only on status changes (no more proposal:label creation)
     await sql`
       CREATE TRIGGER create_final_labels_on_score
       AFTER INSERT ON scoreEvent
