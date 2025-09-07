@@ -72,7 +72,7 @@ pendingLabels (id, scoreEventId, targetUri, labelValue, negative, createdAt)
 When a proposal is first created:
 1. User creates proposal → auto-rating generated (note authors automatically rate their own note as helpful)
 2. Algorithm Service detects new proposal → calls `score(status: "needs_more_ratings")`
-3. Trigger creates `proposed-label:needs-context` label
+3. Trigger creates `proposal:label:needs-context` label
 4. Community Notes-enabled frontends add "Readers Added Context..." prompt to posts with this label.
 
 ### Approved Labels (Algorithmic)
@@ -153,7 +153,7 @@ When users see a community-notes-enabled client:
 
 ### Label Display
 
-- **Proposed labels**: `proposed-label:needs-context` → "Rate proposed community notes" prompt
+- **Proposed labels**: `proposal:label:needs-context` → "Rate proposed community notes" prompt
 - **Final labels**: `needs-context` → Shows "Readers added context heading" with actual note text.
 -
 ## Deployment Architecture
@@ -242,7 +242,7 @@ pendingLabels (id, scoreEventId, targetUri, labelValue, negative, createdAt)
 When a proposal is first created:
 1. User creates proposal → auto-rating generated (note authors automatically rate their own note as helpful)
 2. Algorithm Service detects new proposal → calls `score(status: "needs_more_ratings")`
-3. Trigger creates `proposed-label:needs-context` label
+3. Trigger creates `proposal:label:needs-context` label
 4. Community Notes-enabled frontends add "Readers Added Context..." prompt to posts with this label.
 
 ### Approved Labels (Algorithmic)
@@ -324,7 +324,7 @@ When users see a community-notes-enabled client:
 
 ### Label Display
 
-- **Proposed labels**: `proposed-label:needs-context` → "Rate proposed community notes" prompt
+- **Proposed labels**: `proposal:label:needs-context` → "Rate proposed community notes" prompt
 - **Final labels**: `needs-context` → Shows "Readers added context heading" with actual note text.
 -
 ## Deployment Architecture
