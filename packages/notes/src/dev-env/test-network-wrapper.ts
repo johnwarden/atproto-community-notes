@@ -24,7 +24,7 @@ import { TestLabeler } from './test-labeler'
 export class TestNetworkWrapper {
   public network: TestNetwork
   public labeler?: TestLabeler
-  public notes?: any // Direct TestNotes instance
+  public notes?: TestNotes | undefined
   public introspectWrapper?: IntrospectWrapper
 
   constructor(network: TestNetwork) {

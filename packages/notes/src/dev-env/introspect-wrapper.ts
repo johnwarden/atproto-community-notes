@@ -66,9 +66,9 @@ export class IntrospectWrapper {
           notes: {
             url: notes.url,
             internalUrl: notes.internalUrl,
-            feedgenDocumentDid: notes.feedGeneratorDid,
+            feedgenDocumentDid: notes.feedgenDocumentDid,
             labelerDid: notes.labelerDid,
-            repoDid: notes.serviceAccount.did,
+            repoDid: notes.repoAccount.did,
             dbPath: notes.dbPath,
           },
         }),

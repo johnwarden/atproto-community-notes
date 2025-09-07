@@ -79,11 +79,9 @@ const run = async () => {
     `🔍 Enhanced introspection server started http://localhost:${network.introspectWrapper!.port}`,
   )
   console.log(
-    `📝 Community Notes server started http://localhost:${network.notes.port}`,
+    `📝 Community Notes server started http://localhost:${network.notes!.port}`,
   )
-  console.log(
-    `📝 Community Notes service DID ${network.notes.serviceAccount.did}`,
-  )
+  console.log(`📝 Community Notes repo DID ${network.notes!.repoAccount.did}`)
 
   // Generate mock data
   console.log('🎭 Generating mock setup')

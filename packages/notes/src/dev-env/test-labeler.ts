@@ -2,7 +2,7 @@ import events from 'node:events'
 import http from 'node:http'
 import express, { json } from 'express'
 import { Secp256k1Keypair } from '@atproto/crypto'
-import { createServiceAccount } from '../test-notes'
+import { createRepoAccount } from '../test-notes'
 
 /**
  * Test Labeler service - provides mock labeling functionality
@@ -133,7 +133,7 @@ export async function createLabelerActor(
   const keyPair = await Secp256k1Keypair.create({ exportable: true })
 
   // First create a regular account (this creates both DID and account)
-  const labelerTokens = await createServiceAccount(pdsUrl, 'cnlabeler.test')
+  const labelerTokens = await createRepoAccount(pdsUrl, 'cnlabeler.test')
   // Now we need to update the DID document to add AtprotoLabeler service
   // For now, let's just return the DID - the labeler service will work without the service in DID doc
   // TODO: Add PLC operation to update DID document with AtprotoLabeler service

@@ -1,8 +1,8 @@
 import { envInt, envStr } from '@atproto/common'
 
-export interface ServiceAccount {
-  did: string // Service DID (used for both identity and repository)
-  key: any // Service signing key (string or keypair object)
+export interface RepoAccount {
+  did: string // Account DID (used for both identity and repository)
+  key: any // Signing key (string or keypair object)
   password: string // Password for credential-based authentication
 }
 
@@ -10,8 +10,8 @@ export interface NotesServiceConfig {
   port: number
   internalPort: number
   dbPath: string
-  repoAccount: ServiceAccount // Repository account for all records
-  feedGeneratorDid: string // Feed generator document DID (service host)
+  repoAccount: RepoAccount // Repository account for all records
+  feedgenDocumentDid: string // Feed generator document DID (service host)
   pdsUrl: string // PDS URL for AT Protocol record creation
   labeler: LabelerConfig // Labeler service configuration
 }
@@ -32,7 +32,6 @@ export const readEnv = (): ServerEnvironment => {
     repoAccountPrivateKey: envStr('REPO_PRIVATE_KEY'),
     repoAccountPassword: envStr('REPO_PASSWORD'),
 
-    // feed generator document DID (service host)
     feedgenDocumentDid: envStr('FEEDGEN_DOCUMENT_DID'),
 
     // labeler
@@ -68,7 +67,7 @@ export interface DatabaseConfig {
   dbPath: string
 }
 
-export interface ServiceAccountConfig {
+export interface RepoAccountConfig {
   did: string
   key: string
   password: string
@@ -133,6 +132,6 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
       key: env.repoAccountPrivateKey,
       password: env.repoAccountPassword,
     },
-    feedGeneratorDid: env.feedgenDocumentDid,
+    feedgenDocumentDid: env.feedgenDocumentDid,
   }
 }

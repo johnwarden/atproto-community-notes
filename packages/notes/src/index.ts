@@ -12,7 +12,7 @@ import getProposals from './api/org/opencommunitynotes/getProposals'
 import rateProposal from './api/org/opencommunitynotes/rateProposal'
 import { AuthService } from './auth'
 import { createRouter as createBasicRouter } from './basic-routes'
-import { type NotesServiceConfig, type ServiceAccount } from './config'
+import { type NotesServiceConfig, type RepoAccount } from './config'
 import { AppContext } from './context'
 import { Database } from './db'
 import { registerFeedHandlers } from './feeds'
@@ -39,14 +39,14 @@ export class NotesService {
   private internalServer?: HttpServer
   private db?: Database
 
-  public repoAccount: ServiceAccount
-  public feedGeneratorDid: string
+  public repoAccount: RepoAccount
+  public feedgenDocumentDid: string
   public pdsUrl: string
 
   constructor(private config: NotesServiceConfig) {
     this.repoAccount = config.repoAccount
 
-    this.feedGeneratorDid = config.feedGeneratorDid
+    this.feedgenDocumentDid = config.feedgenDocumentDid
     this.pdsUrl = config.pdsUrl
   }
 
@@ -101,7 +101,7 @@ export class NotesService {
       auth,
       db: this.db,
       repoAccount: this.repoAccount,
-      feedGeneratorDid: this.feedGeneratorDid,
+      feedgenDocumentDid: this.feedgenDocumentDid,
       pdsUrl: this.pdsUrl,
       reqLabelers: () => ({}), // Mocked for now
       config: this.config,
@@ -259,7 +259,7 @@ export class NotesService {
       for (const fg of feedGenerators) {
         try {
           const record = {
-            did: this.feedGeneratorDid || this.repoAccount?.did,
+            did: this.feedgenDocumentDid,
             displayName: fg.displayName,
             description: fg.description,
             createdAt: new Date().toISOString(),

@@ -156,7 +156,7 @@ export async function createAuthenticatedPdsAgent(ctx: AppContext): Promise<{
     log.error(
       {
         hasPdsUrl: !!ctx.pdsUrl,
-        hasServiceAccount: !!account,
+        hasRepoAccount: !!account,
         hasPassword: !!account?.password,
       },
       'PDS URL and service account password must be configured',

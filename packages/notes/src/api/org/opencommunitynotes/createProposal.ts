@@ -315,7 +315,7 @@ export default function (server: Server, ctx: AppContext) {
         const proposalRecord = {
           $type: 'social.pmsky.proposal',
           typ: input.body.typ,
-          src: ctx.repoAccount!.did, // Repository account DID (validated above)
+          src: ctx.repoAccount.did, // Repository account DID (validated above)
           uri: normalizedTargetUri,
           ...(input.body.cid && { cid: input.body.cid }), // Only include cid if provided
           val: input.body.val,

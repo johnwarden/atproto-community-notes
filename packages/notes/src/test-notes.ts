@@ -3,18 +3,12 @@ import * as path from 'node:path'
 import * as plc from '@did-plc/lib'
 import { AtpAgent } from '@atproto/api'
 import { Secp256k1Keypair, randomStr } from '@atproto/crypto'
-import type { NotesTestConfig } from './dev-env/test-interfaces'
+import { RepoAccount } from './config'
 import { NotesService } from './index'
 
 export interface DidAndKey {
   did: string
   key: Secp256k1Keypair
-}
-
-export interface ServiceAccountWithToken {
-  did: string // Service DID (used for both identity and repository)
-  key: Secp256k1Keypair
-  password: string // Password for credential-based authentication
 }
 
 // This implements the NotesTestService interface defined in dev-env
@@ -27,9 +21,9 @@ export class TestNotes {
     public port: number,
     public internalPort: number,
     public server: NotesService,
-    public serviceAccount: ServiceAccountWithToken,
+    public repoAccount: RepoAccount,
     public dbPath: string,
-    public feedGeneratorDid: string,
+    public feedgenDocumentDid: string,
     public labelerDid: string,
     public labelerUrl: string,
   ) {
@@ -54,17 +48,17 @@ export class TestNotes {
     )
 
     // Create service accounts
-    let serviceAccount: ServiceAccountWithToken | undefined
+    let repoAccount: RepoAccount | undefined
 
     if (config.plcUrl && config.pdsUrl) {
       // Create repository account (for both feed records and notes records)
       const repoKeypair = await Secp256k1Keypair.create({ exportable: true })
-      const repoTokens = await createServiceAccount(
+      const repoTokens = await createRepoAccount(
         config.pdsUrl,
         'notes-repo.test',
       )
 
-      serviceAccount = {
+      repoAccount = {
         did: repoTokens.did,
         key: repoKeypair,
         password: 'service-password-123', // Use password instead of JWT tokens
@@ -76,7 +70,7 @@ export class TestNotes {
     }
 
     // Create separate feed generator document DID with BskyFeedGenerator service
-    const feedGeneratorDid: string = await createFeedGeneratorDid(
+    const feedgenDocumentDid: string = await createFeedGeneratorDid(
       config.plcUrl,
       port,
     )
@@ -85,8 +79,8 @@ export class TestNotes {
       port,
       internalPort,
       dbPath: dbPath,
-      repoAccount: serviceAccount,
-      feedGeneratorDid: feedGeneratorDid,
+      repoAccount: repoAccount,
+      feedgenDocumentDid: feedgenDocumentDid,
       pdsUrl: config.pdsUrl,
       labeler: {
         did: config.labelerDid,
@@ -101,9 +95,9 @@ export class TestNotes {
       port,
       internalPort,
       server,
-      serviceAccount!,
+      repoAccount,
       dbPath,
-      feedGeneratorDid,
+      feedgenDocumentDid,
       config.labelerDid,
       config.labelerUrl,
     )
@@ -114,7 +108,7 @@ export class TestNotes {
   }
 }
 
-export async function createServiceAccount(
+export async function createRepoAccount(
   pdsUrl: string,
   handle: string,
 ): Promise<{
@@ -179,9 +173,5 @@ export async function createFeedGeneratorDid(
     throw error
   }
 }
-
-// Export factory function for dev-env
-export const createTestNotes = (config: NotesTestConfig) =>
-  TestNotes.create(config)
 
 export default TestNotes

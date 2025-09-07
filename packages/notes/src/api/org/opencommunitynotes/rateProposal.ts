@@ -165,7 +165,7 @@ export default function (server: Server, ctx: AppContext) {
         } else {
           // For create/update, we need to fetch the created record to return details
           // This is what the client expects based on the existing API
-          const serviceDid = ctx.repoAccount!.did
+          const serviceDid = ctx.repoAccount.did
           const voteRecord = await getVoteRecord(
             ctx.db,
             serviceDid,

@@ -120,7 +120,7 @@ export default function registerFeedHandlers(
   app.get(
     '/xrpc/app.bsky.feed.describeFeedGenerator',
     asyncHandler(async (req, res) => {
-      if (!ctx.feedGeneratorDid) {
+      if (!ctx.feedgenDocumentDid) {
         return res.status(500).json({
           error: 'InternalServerError',
           message: 'Feed generator not properly configured',
@@ -129,7 +129,7 @@ export default function registerFeedHandlers(
 
       // Return the repository DID (where feed records are stored)
       // This matches the DID used in feed URIs
-      const repoDid = ctx.repoAccount?.did || ctx.feedGeneratorDid
+      const repoDid = ctx.repoAccount!.did
       const did = repoDid
       const feeds = [
         { uri: `at://${repoDid}/app.bsky.feed.generator/new` },
@@ -139,7 +139,7 @@ export default function registerFeedHandlers(
 
       log.info(
         {
-          feedGeneratorDid: ctx.feedGeneratorDid,
+          feedgenDocumentDid: ctx.feedgenDocumentDid,
           repoDid,
           feedCount: feeds.length,
         },

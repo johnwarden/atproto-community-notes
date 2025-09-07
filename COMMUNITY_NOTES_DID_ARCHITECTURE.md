@@ -72,7 +72,7 @@ const feedgenDocumentDid = await createFeedGeneratorDid(plcUrl, port)
 // Creates document DID with BskyFeedGenerator service
 
 // 2. Repository Account (for both feed records and notes records in dev-env)
-const repoAccount = await createServiceAccount(pdsUrl, keypair)
+const repoAccount = await createRepoAccount(pdsUrl, keypair)
 // Creates actor account in PDS for repository operations
 
 // 3. Labeler Actor (must be actor for getActors() to work)

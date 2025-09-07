@@ -104,10 +104,10 @@ describe('Feed Hydration', () => {
 
   test('📝 Test 3: Feed Generator Records in PDS', async () => {
     // Test that feed generator records exist in PDS (API surface test)
-    const serviceRepoId = network.notes?.serviceAccount.did
+    const feedgenRepoDid = network.notes?.repoAccount.did
 
     const recordsResponse = await fetch(
-      `${network.pds.url}/xrpc/com.atproto.repo.listRecords?repo=${serviceRepoId}&collection=app.bsky.feed.generator`,
+      `${network.pds.url}/xrpc/com.atproto.repo.listRecords?repo=${feedgenRepoDid}&collection=app.bsky.feed.generator`,
     )
 
     assert.ok(recordsResponse.ok, 'PDS records request should succeed')
@@ -123,7 +123,7 @@ describe('Feed Hydration', () => {
 
   test('🆔 Test 4: DID Document Verification', async () => {
     // Test DID document resolution and BskyFeedGenerator service verification
-    const feedgenDocumentDid = network.notes?.feedGeneratorDid
+    const feedgenDocumentDid = network.notes?.feedgenDocumentDid
 
     // Test DID document resolution
     const didResponse = await fetch(`${network.plc.url}/${feedgenDocumentDid}`)
@@ -151,8 +151,8 @@ describe('Feed Hydration', () => {
 
   test('🌊 Test 5: Bsky Feed Hydration', async () => {
     // Construct feed URI: at://{REPO_DID}/app.bsky.feed.generator/new
-    const serviceRepoId = network.notes?.serviceAccount.did
-    const bskyFeedUri = `at://${serviceRepoId}/app.bsky.feed.generator/new`
+    const repoDid = network.notes?.repoAccount.did
+    const bskyFeedUri = `at://${repoDid}/app.bsky.feed.generator/new`
     // URL-encode the URI (: → %3A, / → %2F)
     const encodedBskyUri = encodeURIComponent(bskyFeedUri)
 
