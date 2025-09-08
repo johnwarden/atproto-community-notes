@@ -91,7 +91,6 @@ fi
 # Test 3: Verify label content and structure
 print_test_section "🏷️  Test 3: Verify Label Content and Structure"
 
-echo "Test 3: $BSKY_SERVICE_URL, $TEST_POST_URI"
 LABELS_RESPONSE=$(curl -s "$BSKY_SERVICE_URL/xrpc/app.bsky.feed.getPosts?uris=$TEST_POST_URI"  -H "atproto-accept-labelers: $LABELER_DID" 2>/dev/null || echo '{"posts":[]}')
 
 LABELS=$(echo "$LABELS_RESPONSE" | jq '.posts[0].labels // []' 2>/dev/null || echo '[]')

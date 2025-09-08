@@ -9,16 +9,9 @@ primary_region = 'sjc'
 [build]
 
 [env]
-  NODE_ENV = 'production'
   PORT = '8081'
-  INTERNAL_PORT = '8082'
-  PDS_URL = 'https://bsky.network'
-  DB_PATH = '/data/notes.db'
-  # DIDs will be set via deploy command or can be set here for production
-  # REPO_DID = 'did:plc:your-production-repo-did'
-  # FEEDGEN_DOCUMENT_DID = 'did:plc:your-production-feedgen-did'
-  # LABELER_DID = 'did:plc:your-production-labeler-did'
-  # LABELER_URL = 'https://labeler.example.com'
+  INTERNAL_API_PORT = '8082'
+  PRIMARY_REGION = 'sjc'
 
 [[services]]
   protocol = "tcp"

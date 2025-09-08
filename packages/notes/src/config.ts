@@ -8,7 +8,8 @@ export interface RepoAccount {
 
 export interface NotesServiceConfig {
   port: number
-  internalPort: number
+  internalApiPort: number
+  internalApiHost: string
   dbPath: string
   repoAccount: RepoAccount // Repository account for all records
   feedgenDocumentDid: string // Feed generator document DID (service host)
@@ -20,7 +21,8 @@ export const readEnv = (): ServerEnvironment => {
   return {
     // service
     port: envInt('PORT'),
-    internalPort: envInt('INTERNAL_PORT'),
+    internalApiPort: envInt('INTERNAL_API_PORT'),
+    internalApiHost: envStr('INTERNAL_API_HOST') || envStr('FLY_PRIVATE_IPV6'),
     nodeEnv: envStr('NODE_ENV'),
     pdsUrl: envStr('PDS_URL'),
 
@@ -43,7 +45,8 @@ export const readEnv = (): ServerEnvironment => {
 export type ServerEnvironment = {
   // service
   port?: number
-  internalPort?: number
+  internalApiPort?: number
+  internalApiHost?: string
   nodeEnv?: string
   pdsUrl?: string
 
@@ -106,8 +109,8 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     throw new Error('PORT environment variable is required')
   }
 
-  if (!env.internalPort) {
-    throw new Error('INTERNAL_PORT environment variable is required')
+  if (!env.internalApiPort) {
+    throw new Error('INTERNAL_API_PORT environment variable is required')
   }
 
   if (!env.repoAccountDid) {
@@ -118,9 +121,14 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     throw new Error('REPO_PASSWORD environment variable is required')
   }
 
+  if (!env.internalApiHost) {
+    throw new Error('INTERNAL_API_HOST environment variable is required')
+  }
+
   return {
     port: env.port,
-    internalPort: env.internalPort,
+    internalApiPort: env.internalApiPort,
+    internalApiHost: env.internalApiHost,
     dbPath: env.dbPath,
     pdsUrl: env.pdsUrl!,
     labeler: {

@@ -16,7 +16,7 @@ const main = async () => {
 
   console.log('Community Notes service is running')
   console.log(`Main API listening on port ${config.port}`)
-  console.log(`Internal API listening on port ${config.internalPort}`)
+  console.log(`Internal API listening on port ${config.internalApiPort}`)
   console.log(`Database: ${config.dbPath}`)
 
   // Graceful shutdown (see also https://aws.amazon.com/blogs/containers/graceful-shutdowns-with-ecs/)

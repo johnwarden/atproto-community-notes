@@ -47,8 +47,12 @@ Based on the new PDS-style configuration system and multi-DID architecture:
 ```bash
 # Service Configuration
 NODE_ENV=production
-PORT=8081
-INTERNAL_PORT=8082
+PORT=8081                    # Main API port (also in fly.toml)
+INTERNAL_API_PORT=8082      # Internal service API port (also in fly.toml)
+
+# Internal Service Communication
+# If not set, app will use FLY_PRIVATE_IPV6 for internal host
+INTERNAL_API_HOST=
 
 # External Services
 PDS_URL=https://bsky.network
@@ -78,8 +82,9 @@ REPO_PASSWORD=...
 
 #### Required Environment Variables
 Per `config.ts`, these variables are required:
-- `PORT` - Main service port
-- `INTERNAL_PORT` - Internal API port  
+- `PORT` - Main service port (set in fly.toml [env])
+- `INTERNAL_API_PORT` - Internal API port (set in fly.toml [env])
+- `INTERNAL_API_HOST` - Internal service host (optional, defaults to FLY_PRIVATE_IPV6)
 - `DB_PATH` - SQLite database path
 - `PDS_URL` - AT Protocol PDS URL
 - `REPO_DID` - Repository account DID
@@ -190,6 +195,12 @@ Key tables for the event-sourced label system:
 - `pendingLabels` - Labels awaiting sync to labeler service
 - `record` - Proposals and ratings from AT Protocol
 
+### Internal Service Communication
+- **INTERNAL_API_HOST**: Optional environment variable for internal service communication
+- **Default Behavior**: If not set, app automatically uses `process.env.FLY_PRIVATE_IPV6`
+- **Fly.io Integration**: FLY_PRIVATE_IPV6 provides secure internal networking between services
+- **Scoring Service**: Will use this to call Notes Service `/score` endpoint on port 8082
+
 ### Fly.io Configuration Details
 
 #### Notes Service (fly.toml)
@@ -200,15 +211,9 @@ primary_region = 'sjc'
 [build]
 
 [env]
-  NODE_ENV = 'production'
   PORT = '8081'
-  INTERNAL_PORT = '8082'
-  PDS_URL = 'https://bsky.network'
-  DB_PATH = '/data/notes.db'
-  REPO_DID = 'did:plc:actual-production-repo-did'
-  FEEDGEN_DOCUMENT_DID = 'did:plc:actual-production-feedgen-did'
-  LABELER_DID = 'did:plc:actual-production-labeler-did'
-  LABELER_URL = 'https://labeler.example.com'
+  INTERNAL_API_PORT = '8082'
+  PRIMARY_REGION = 'sjc'
 
 [[services]]
   protocol = "tcp"

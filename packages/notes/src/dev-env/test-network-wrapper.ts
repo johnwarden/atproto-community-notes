@@ -34,7 +34,7 @@ export class TestNetworkWrapper {
   static async create(
     params: Parameters<typeof TestNetwork.create>[0] & {
       labeler: { port: number }
-      notes: { port: number; internalPort: number }
+      notes: { port: number; internalApiPort: number; internalApiHost: string }
     },
   ): Promise<TestNetworkWrapper> {
     const labeler = params.labeler
@@ -137,7 +137,8 @@ export class TestNetworkWrapper {
     // Create notes service if configured
     wrapper.notes = await TestNotes.create({
       port: params.notes.port,
-      internalPort: params.notes.internalPort,
+      internalApiPort: params.notes.internalApiPort,
+      internalApiHost: params.notes.internalApiHost,
       plcUrl: plc.url,
       pdsUrl: pds.url,
       labelerDid: wrapper.labeler.labelerDid,

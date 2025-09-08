@@ -460,7 +460,7 @@ export async function createTestNetwork(
     const network = await TestNetworkWrapper.create({
       dbPostgresSchema: schemaName,
       labeler: { port: await getPort() },
-      notes: { port: await getPort(), internalPort: await getPort() },
+      notes: { port: await getPort(), internalApiPort: await getPort(), internalApiHost: "::1" },
     })
 
     return network

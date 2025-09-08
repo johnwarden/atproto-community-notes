@@ -12,7 +12,8 @@ env:
     @echo "🔧 Environment variables status:"
     @echo "NODE_ENV: ${NODE_ENV:-'not set'}"
     @echo "PORT: ${PORT:-'not set'}"
-    @echo "INTERNAL_PORT: ${INTERNAL_PORT:-'not set'}"
+    @echo "INTERNAL_API_PORT: ${INTERNAL_API_PORT:-'not set'}"
+    @echo "INTERNAL_API_HOST: ${INTERNAL_API_HOST:-'not set (will use FLY_PRIVATE_IPV6)'}"
     @echo "PDS_URL: ${PDS_URL:-'not set'}"
     @echo "DB_PATH: ${DB_PATH:-'not set'}"
     @echo "REPO_DID: ${REPO_DID:-'not set'}"
@@ -67,8 +68,7 @@ deploy:
     @echo "🚀 Deploying Notes service..."
     fly deploy \
         --env NODE_ENV=${NODE_ENV} \
-        --env PORT=${PORT} \
-        --env INTERNAL_PORT=${INTERNAL_PORT} \
+        --env INTERNAL_API_HOST=${INTERNAL_API_HOST} \
         --env PDS_URL=${PDS_URL} \
         --env DB_PATH=${DB_PATH} \
         --env REPO_DID=${REPO_DID} \

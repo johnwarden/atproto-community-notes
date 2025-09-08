@@ -60,8 +60,8 @@ export class NotesService {
       throw new Error('port == 0')
     }
 
-    if (this.config.internalPort === 0) {
-      throw new Error('internalPort == 0')
+    if (this.config.internalApiPort === 0) {
+      throw new Error('internalApiPort == 0')
     }
 
     this.db = new Database({
@@ -201,14 +201,15 @@ export class NotesService {
     await this.createFeedGeneratorRecords()
 
     const port = this.config.port
-    const internalPort = this.config.internalPort
 
     this.server.listen(port)
 
-    this.internalServer.listen(internalPort)
+    const internalApiHost = this.config.internalApiHost
+    const internalApiPort = this.config.internalApiPort
 
-    log.info({ port }, 'Main server started')
-    log.info({ internalPort }, 'Internal server started')
+    this.internalServer.listen(internalApiPort, internalApiHost, () => {
+      log.info({ internalApiHost, internalApiPort }, `Internal HTTP listening`)
+    })
 
     return this.server
   }

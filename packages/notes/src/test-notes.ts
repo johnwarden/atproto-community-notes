@@ -14,12 +14,13 @@ export interface DidAndKey {
 // This implements the NotesTestService interface defined in dev-env
 // but we don't import it to avoid circular dependency
 export class TestNotes {
+  public url: string
   public internalUrl: string
-
   constructor(
-    public url: string,
+    // public internalUrl: string,
     public port: number,
-    public internalPort: number,
+    public internalApiPort: number,
+    public internalApiHost: string,
     public server: NotesService,
     public repoAccount: RepoAccount,
     public dbPath: string,
@@ -27,20 +28,22 @@ export class TestNotes {
     public labelerDid: string,
     public labelerUrl: string,
   ) {
-    this.internalUrl = `http://localhost:${internalPort}`
+    this.internalUrl = `http://[${internalApiHost}]:${internalApiPort}`
+    this.url = `http://localhost:${port}`
   }
 
   static async create(config: {
     port: number
-    internalPort: number
+    internalApiPort: number
+    internalApiHost: string
     plcUrl: string
     pdsUrl: string
     labelerDid: string
     labelerUrl: string
   }): Promise<TestNotes> {
     const port = config.port
-    const url = `http://localhost:${port}`
-    const internalPort = config.internalPort
+    const internalApiPort = config.internalApiPort
+    const internalApiHost = config.internalApiHost
 
     const dbPath = path.join(
       os.tmpdir(),
@@ -77,7 +80,8 @@ export class TestNotes {
 
     const server = await NotesService.create({
       port,
-      internalPort,
+      internalApiPort,
+      internalApiHost,
       dbPath: dbPath,
       repoAccount: repoAccount,
       feedgenDocumentDid: feedgenDocumentDid,
@@ -91,9 +95,9 @@ export class TestNotes {
     await server.start()
 
     return new TestNotes(
-      url,
       port,
-      internalPort,
+      internalApiPort,
+      internalApiHost,
       server,
       repoAccount,
       dbPath,
