@@ -18,60 +18,34 @@ codegen PACKAGE="":
     fi
 
 # Build
-build PACKAGE="":
-    #!/usr/bin/env bash
-    if [ -n "{{PACKAGE}}" ]; then
-       pnpm --filter "@atproto/{{PACKAGE}}" build
-    else
-       pnpm build
-    fi
+build:
+   pnpm build
 
 # Run tests
-test PACKAGE="" FILE="":
+test FILE="":
     #!/usr/bin/env bash
-    if [ -n "{{PACKAGE}}" ]; then
-        cd packages/{{PACKAGE}}
-        if [ -n "{{FILE}}" ]; then
-            LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 30 ../dev-infra/with-test-redis-and-db.sh node --test  --test-reporter=spec --import=tsx tests/$(basename {{FILE}})
-        else
-            LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 120 ../dev-infra/with-test-redis-and-db.sh node --test  --test-reporter=spec --import=tsx tests/*.test.ts
-        fi
+        cd packages/notes
+    if [ -n "{{FILE}}" ]; then
+        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 30 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/$(basename {{FILE}})
     else
-       pnpm test
+        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 120 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts
     fi
 
 
 lint PACKAGE="":
-    #!/usr/bin/env bash
-    if [ -n "{{PACKAGE}}" ]; then
-        eslint "packages/{{PACKAGE}}" --ext .ts,.js,.tsx,.jsx
-    else
-        pnpm lint
-    fi
-
-style PACKAGE="" *ARGS:
-    #!/usr/bin/env bash
-    if [ -n "{{PACKAGE}}" ]; then
-        prettier --check "packages/{{PACKAGE}}" {{ARGS}}
-    else
-        pnpm style {{ARGS}}
-    fi
+    eslint "packages/notes" --ext .ts,.js,.tsx,.jsx
 
 # Format source files (lint --fix and prettier --write)
-format PACKAGE="" *ARGS:
+format  *ARGS:
     #!/usr/bin/env bash
-    if [ -n "{{PACKAGE}}" ]; then
-        eslint "packages/{{PACKAGE}}" --ext .ts,.js,.tsx,.jsx --fix
-        prettier --write "packages/{{PACKAGE}}" {{ARGS}}
-    else
-        pnpm format {{ARGS}}
-    fi
+    eslint "packages/notes" --ext .ts,.js,.tsx,.jsx --fix
+    prettier --write "packages/notes" {{ARGS}}
 
 # verify
-verify PACKAGE="":
-    just style {{PACKAGE}}
-    just lint {{PACKAGE}}
-    just typecheck {{PACKAGE}}
+verify:
+    just style notes
+    just lint notes
+    just typecheck notes
 
 
 # Run syntax re-formatting, just on lexicon .json files
