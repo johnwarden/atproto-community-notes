@@ -12,6 +12,13 @@ export interface TestUser {
   agent: AtpAgent
 }
 
+export async function debug(message: string, data?: any): Promise<void> {
+  process.stderr.write(`DEBUG: ${message}\n`)
+  if (data) {
+    process.stderr.write(`       ${JSON.stringify(data, null, 2)}\n`)
+  }
+}
+
 export interface TestUsers {
   alice: TestUser
   bob: TestUser
@@ -210,20 +217,17 @@ export async function setProposalScore(
   score: number,
 ): Promise<boolean> {
   try {
-    const response = await fetch(
-      `${network.notes?.internalUrl}/score`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          proposalUri,
-          status,
-          score,
-        }),
+    const response = await fetch(`${network.notes?.internalUrl}/score`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    )
+      body: JSON.stringify({
+        proposalUri,
+        status,
+        score,
+      }),
+    })
 
     if (!response.ok) {
       const errorText = await response.text()
