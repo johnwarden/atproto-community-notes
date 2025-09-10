@@ -7,6 +7,7 @@ import {
   TestOzone,
   TestPds,
   TestPlc,
+  TestServerParams,
   mockNetworkUtilities,
 } from '@atproto/dev-env'
 import { generateMockSetup } from '@atproto/dev-env/dist/mock'
@@ -32,7 +33,7 @@ export class TestNetworkWrapper {
   }
 
   static async create(
-    params: Parameters<typeof TestNetwork.create>[0] & {
+    params: Partial<TestServerParams> & {
       labeler: { port: number }
       notes: { port: number; internalApiPort: number; internalApiHost: string }
     },
