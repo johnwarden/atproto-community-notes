@@ -126,7 +126,15 @@ describe('Feed Hydration', () => {
     const feedgenDocumentDid = network.notes?.feedgenDocumentDid
 
     // Test DID document resolution
-    const didResponse = await fetch(`${network.plc.url}/${feedgenDocumentDid}`)
+    let didResponse: Response
+    if (feedgenDocumentDid.startsWith('did:web:')) {
+      // For did:web, construct the .well-known URL
+      const domain = feedgenDocumentDid.replace('did:web:', '')
+      didResponse = await fetch(`https://${domain}/.well-known/did.json`)
+    } else {
+      // For did:plc and other DID methods, use PLC directory
+      didResponse = await fetch(`${network.plc.url}/${feedgenDocumentDid}`)
+    }
     assert.ok(didResponse.ok, 'DID document should be resolvable')
 
     const didDoc = await didResponse.json()

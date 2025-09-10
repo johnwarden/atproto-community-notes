@@ -21,6 +21,7 @@ import { httpLogger as log, loggerMiddleware } from './logger'
 import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
 import { createAuthenticatedPdsAgent } from './utils'
+import wellKnown from './well-known'
 
 // Create scoring-specific logger
 const scoringLog = subsystemLogger('scoring')
@@ -120,6 +121,8 @@ export class NotesService {
 
     // Register feed endpoints
     registerFeedHandlers(app, ctx)
+
+    wellKnown(app, ctx)
 
     app.use(server.xrpc.router)
 
