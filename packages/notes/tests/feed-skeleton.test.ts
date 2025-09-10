@@ -10,7 +10,7 @@ import {
   setProposalScore,
 } from './test-utils'
 
-describe('Feed Skeleton', () => {
+describe('Feed Skeleton Test', () => {
   let network: TestNetworkWrapper
   let users: TestUsers
   let feedGeneratorDid: string

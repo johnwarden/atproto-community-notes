@@ -31,20 +31,25 @@ health:
     @curl -s "https://notes.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
 
 
-# === Database Setup ===
+# === LiteFS Setup ===
 
-# Set up persistent volume for Notes service database
-setup-volume:
-    @echo "💾 Setting up persistent volume for Notes service..."
+# Set up LiteFS volume for Notes service (required for shared database)
+setup-litefs-volume:
+    @echo "💾 Setting up LiteFS volume for Notes service..."
     @echo "📊 Creating 10GB volume in sjc region..."
-    fly volumes create notes_data --region sjc --size 10
-    @echo "✅ Persistent volume created successfully!"
-    @echo "💡 Volume will be mounted at /data in the container"
+    fly volumes create litefs --region sjc --size 10
+    @echo "✅ LiteFS volume created successfully!"
+    @echo "💡 Volume will be mounted at /litefs in the container"
+
+# Check LiteFS status
+litefs-status:
+    @echo "🔍 Checking LiteFS status..."
+    fly ssh console --command "litefs status"
 
 # Check database status
 db-status:
     @echo "🔍 Checking database status..."
-    fly ssh console --command "ls -la /data/ && sqlite3 /data/notes.db 'SELECT COUNT(*) FROM sqlite_master;'"
+    fly ssh console --command "ls -la /litefs/ && sqlite3 /litefs/notes.db 'SELECT COUNT(*) FROM sqlite_master;'"
 
 # === Deployment & Management ===
 
@@ -88,8 +93,8 @@ fly-setup:
     fly apps create notes
     @echo "2️⃣ Setting secrets from environment..."
     just setup-secrets
-    @echo "3️⃣ Creating persistent volume..."
-    just setup-volume
+    @echo "3️⃣ Creating LiteFS volume..."
+    just setup-litefs-volume
     @echo "4️⃣ Deploying application..."
     just deploy
     @echo "✅ Notes service deployment complete!"

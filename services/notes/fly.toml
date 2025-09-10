@@ -50,7 +50,10 @@ primary_region = 'sjc'
   cpu_kind = 'shared'
   cpus = 1
 
-# Persistent volume for database
+# LiteFS configuration
+[experimental]
+  enable_consul = true
+
 [[mounts]]
-  source = "notes_data"
-  destination = "/data"
+  source = "litefs"
+  destination = "/litefs"

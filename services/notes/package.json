@@ -3,6 +3,6 @@
   "private": true,
   "packageManager": "pnpm@8.15.9",
   "dependencies": {
-    "@atproto/notes": "workspace:^"
+    "community-notes": "workspace:^"
   }
 }

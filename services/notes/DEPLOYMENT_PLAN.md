@@ -1,5 +1,8 @@
 # Community Notes Service - Production Deployment Plan
 
+TODO: FEEDGEN_DOCUMENT_DID will no be did:web:$NOTES_SERVICE_DOMAIN. We serve a dynamic /.well-known/did.json from that endpoint.
+TODO: INTERNAL_API_HOST
+
 ## Overview
 
 This document outlines the comprehensive plan for deploying the Community Notes service to production. This service is part of the atproto-community-notes project (https://github.com/johnwarden/atproto-community-notes).
@@ -27,9 +30,10 @@ The Community Notes system consists of three main services:
 - **Secret Management**: All secrets stored in Fly.io secrets, no .env files with secrets
 
 ### Database Architecture
-- **Single SQLite Database**: No LiteFS - simplified single database approach
+- **Single SQLite Database**: Shared via LiteFS for algorithm service access
 - **Event-Sourced Labels**: Uses scoreEvent table for audit trail and label generation
 - **Database Triggers**: Automatic label creation via database triggers
+- **LiteFS Replication**: Enables algorithm service to directly read ratings data
 
 ## Configuration Management
 
@@ -57,8 +61,11 @@ INTERNAL_API_HOST=
 # External Services
 PDS_URL=https://bsky.network
 
-# Database
-DB_PATH=/data/notes.db
+# Database (shared via LiteFS)
+DB_PATH=/litefs/notes.db
+
+# LiteFS Configuration
+PRIMARY_REGION=sjc
 
 # DIDs (public, not secrets)
 REPO_DID=did:plc:actual-production-repo-did
@@ -180,13 +187,14 @@ services/scoring/               # Future: Scoring service
 
 ## Database Configuration
 
-### Single SQLite Database
-The Notes Service uses a single SQLite database without LiteFS:
+### LiteFS Shared Database
+The Notes Service uses LiteFS for shared database access:
 
-- **Database Path**: `/data/notes.db` (persistent volume)
-- **Access Pattern**: Direct SQLite access (no replication)
-- **Concurrency**: WAL mode for better read/write performance
+- **Database Path**: `/litefs/notes.db` (LiteFS FUSE mount)
+- **Access Pattern**: LiteFS replication for multi-service access
+- **Concurrency**: WAL mode with LiteFS coordination
 - **Migrations**: Automatic migration on startup
+- **Algorithm Access**: Scoring service reads directly from replicated database
 
 ### Database Schema
 Key tables for the event-sourced label system:
@@ -252,17 +260,21 @@ primary_region = 'sjc'
 [deploy]
   strategy = "immediate"
 
-# Persistent volume for database
+# LiteFS configuration
+[experimental]
+  enable_consul = true
+
 [[mounts]]
-  source = "notes_data"
-  destination = "/data"
+  source = "litefs"
+  destination = "/litefs"
 ```
 
 #### Scoring Service (Future)
 The scoring service will be deployed separately and will:
-- Read from the Notes Service database (read-only access)
+- Read from the Notes Service database via LiteFS replication (direct access)
 - Call the Notes Service `/score` endpoint to submit results
 - Run on a scheduled basis (e.g., every 6 hours)
+- Access same LiteFS volume for shared database access
 
 ### Dockerfile Configuration
 ```dockerfile
@@ -293,12 +305,15 @@ CMD ["node", "--heapsnapshot-signal=SIGUSR2", "--enable-source-maps", "index.js"
 - No `--app` flags needed (app name in fly.toml)
 - Reads non-secret variables from .env
 - All secrets set via `fly secrets set`
-- Added LiteFS volume setup
+- **Port configuration**: PORT and INTERNAL_API_PORT set in fly.toml [env] to stay in sync with internal_port
+- **Most env vars passed via deploy**: Except ports which are hardcoded in fly.toml
+- **INTERNAL_API_HOST**: Optional variable, defaults to FLY_PRIVATE_IPV6 for internal service communication
 
 #### Setup Commands
 - `just fly-setup`: Complete setup (app creation, secrets, volume, deploy)
-- `just setup-volume`: Create persistent storage volume
+- `just setup-litefs-volume`: Create LiteFS storage volume
 - `just setup-secrets`: Set all secrets from environment variables
+- `just litefs-status`: Check LiteFS replication status
 
 #### Deployment Commands
 - `just deploy`: Deploy notes service (no app flag needed)
@@ -329,14 +344,15 @@ fly deploy --config fly.toml
 ```
 
 This deploys:
-- **Notes Service**: HTTP API on port 8081
+- **Notes Service**: HTTP API on port 8081 (Node.js app)
 - **Internal API**: Internal `/score` endpoint on port 8082
-- **Database**: `/data/notes.db` (persistent volume)
+- **Database**: `/litefs/notes.db` (LiteFS FUSE mount)
 
 ### 2. Deploy Scoring Service (Future)
 
 The scoring service will be deployed separately and will:
-- Connect to Notes Service database for read-only access
+- Connect to same LiteFS volume for direct database access
+- Read ratings data directly from `/litefs/notes.db`
 - Call Notes Service `/score` endpoint to submit results
 - Run on scheduled intervals
 
@@ -352,27 +368,32 @@ fly secrets set REPO_PASSWORD="your-repo-password"
 
 ### 4. Volume Setup
 
-Create persistent volume for database:
+Create LiteFS volume for shared database:
 
 ```bash
 # Create volume for Notes service
 cd services/notes
-fly volumes create notes_data --region sjc --size 10
+fly volumes create litefs --region sjc --size 10
+
+# Create volume for Scoring service (future)
+cd services/scoring
+fly volumes create litefs --region sjc --size 10
 ```
 
 ## Database Access Pattern
 
-### Notes Service
-- **Reads**: Direct SQLite access to `/data/notes.db`
+### Notes Service (Primary)
+- **Reads**: Direct SQLite access via LiteFS FUSE mount
 - **Writes**: All user operations (proposals, ratings) and label sync
 - **Ports**: 8081 (main API), 8082 (internal `/score` endpoint)
-- **Concurrency**: WAL mode for better read/write performance
+- **LiteFS Role**: Primary node for database writes
 
-### Scoring Service (Future)
-- **Reads**: Read-only access to Notes Service database
+### Scoring Service (Replica)
+- **Reads**: Direct SQLite access via LiteFS replication
+- **Database Path**: Same `/litefs/notes.db` via LiteFS mount
 - **API Calls**: Calls Notes Service `/score` endpoint to submit results
 - **Schedule**: Periodic execution (e.g., every 6 hours)
-- **Independence**: Separate deployment, connects via HTTP API
+- **LiteFS Role**: Replica node for database reads
 
 ## Health Checks and Monitoring
 
@@ -406,6 +427,19 @@ curl https://notes.fly.dev/health
 curl https://notes-algorithm.fly.dev/health
 ```
 
+#### LiteFS Status
+
+```bash
+# SSH into container
+fly ssh console
+
+# Check LiteFS status
+litefs status
+
+# View LiteFS logs
+tail -f /var/log/litefs.log
+```
+
 #### Database Status
 
 ```bash
@@ -413,17 +447,17 @@ curl https://notes-algorithm.fly.dev/health
 fly ssh console
 
 # Check database file
-ls -la /data/
+ls -la /litefs/
 
 # Check database health
-sqlite3 /data/notes.db "SELECT COUNT(*) FROM sqlite_master;"
+sqlite3 /litefs/notes.db "SELECT COUNT(*) FROM sqlite_master;"
 ```
 
 #### Database Verification
 
 ```bash
 # Connect to database
-sqlite3 /data/notes.db
+sqlite3 /litefs/notes.db
 
 # Check recent score events
 SELECT * FROM scoreEvent ORDER BY createdAt DESC LIMIT 10;
@@ -437,26 +471,120 @@ SELECT * FROM record WHERE collection = 'social.pmsky.proposal' ORDER BY indexed
 
 ## Manual Setup Procedures
 
-### 1. Service DID Creation
+### 1. Repository Account Creation
 ```bash
-# Create service DID manually using AT Protocol tools
-# Store DID and private key in secure location
-# Add to Fly secrets as SERVICE_ACCOUNT_DID and SERVICE_ACCOUNT_PRIVATE_KEY
+# Create repository account in PDS for storing all records
+curl -X POST https://bsky.social/xrpc/com.atproto.server.createAccount \
+  -H "Content-Type: application/json" \
+  -d '{
+    "handle": "repo.your-domain.com",
+    "email": "repo@your-domain.com", 
+    "password": "secure-password"
+  }'
+
+# Store the returned DID and password in Fly secrets
+fly secrets set REPO_DID="did:plc:returned-repo-did"
+fly secrets set REPO_PASSWORD="secure-password"
 ```
 
-### 2. Labeler Registration
+### 2. Feed Generator Document DID Creation
 ```bash
-# Register service as labeler in AT Protocol
-# Configure labeler service record
-# Set up labeler endpoints
-# Store labeler DID and signing key in Fly secrets
+# Create document DID with BskyFeedGenerator service
+curl -X POST https://plc.directory/xrpc/com.atproto.identity.submitPlcOperation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "plc_operation",
+    "verificationMethods": {
+      "atproto": "did:key:your-public-key"
+    },
+    "rotationKeys": ["did:key:your-rotation-key"],
+    "alsoKnownAs": [],
+    "services": {
+      "bsky_fg": {
+        "type": "BskyFeedGenerator",
+        "serviceEndpoint": "https://notes.fly.dev"
+      }
+    },
+    "prev": null
+  }'
+
+# Store the returned DID in environment
+export FEEDGEN_DOCUMENT_DID="did:plc:returned-feedgen-did"
 ```
 
-### 3. Service Account Setup
+### 3. Feed Generator Records Creation
 ```bash
-# Create service account in PDS
-# Generate access/refresh tokens
-# Store tokens in Fly secrets as SERVICE_ACCOUNT_ACCESS_JWT, etc.
+# Authenticate with repository account
+export REPO_ACCESS_JWT=$(curl -X POST https://bsky.social/xrpc/com.atproto.server.createSession \
+  -H "Content-Type: application/json" \
+  -d '{
+    "identifier": "repo.your-domain.com",
+    "password": "secure-password"
+  }' | jq -r '.accessJwt')
+
+# Create "New" feed generator record
+curl -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+  -H "Authorization: Bearer $REPO_ACCESS_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo": "'$REPO_DID'",
+    "collection": "app.bsky.feed.generator",
+    "rkey": "new",
+    "record": {
+      "did": "'$FEEDGEN_DOCUMENT_DID'",
+      "displayName": "Community Notes: New",
+      "description": "Posts with the newest community notes",
+      "createdAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
+    }
+  }'
+
+# Create "Needs Your Help" feed generator record  
+curl -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+  -H "Authorization: Bearer $REPO_ACCESS_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo": "'$REPO_DID'",
+    "collection": "app.bsky.feed.generator",
+    "rkey": "needs_your_help",
+    "record": {
+      "did": "'$FEEDGEN_DOCUMENT_DID'",
+      "displayName": "Community Notes: Needs Your Help",
+      "description": "Posts that need community notes ratings",
+      "createdAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
+    }
+  }'
+
+# Create "Rated Helpful" feed generator record
+curl -X POST https://bsky.social/xrpc/com.atproto.repo.createRecord \
+  -H "Authorization: Bearer $REPO_ACCESS_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "repo": "'$REPO_DID'",
+    "collection": "app.bsky.feed.generator",
+    "rkey": "rated_helpful", 
+    "record": {
+      "did": "'$FEEDGEN_DOCUMENT_DID'",
+      "displayName": "Community Notes: Rated Helpful",
+      "description": "Posts with community notes rated as helpful",
+      "createdAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
+    }
+  }'
+```
+
+### 4. Labeler Account Creation
+```bash
+# Create labeler account (must be actor for getActors() validation)
+curl -X POST https://bsky.social/xrpc/com.atproto.server.createAccount \
+  -H "Content-Type: application/json" \
+  -d '{
+    "handle": "labeler.your-domain.com",
+    "email": "labeler@your-domain.com",
+    "password": "secure-labeler-password"
+  }'
+
+# Update labeler DID document to include AtprotoLabeler service
+# Use PLC operation to add service to existing DID
+# See: https://skyware.js.org/guides/labeler/introduction/getting-started/
 ```
 
 ## Configuration System Details
@@ -484,18 +612,20 @@ The new configuration system follows the PDS pattern:
 ## Scaling Considerations
 
 ### Horizontal Scaling
-- **Notes Service**: Single instance with persistent volume
-- **Scoring Service**: Single instance, calls Notes Service API
-- **Database**: Single SQLite file with WAL mode for concurrency
+- **Notes Service**: Can scale to multiple replicas (all read-only except primary)
+- **Scoring Service**: Single instance, direct database access via LiteFS
+- **Database**: Single primary, multiple replicas via LiteFS
 
 ### Performance
-- **Read Performance**: Excellent (local SQLite access)
-- **Write Performance**: Good (WAL mode, single writer)
-- **API Performance**: Internal `/score` endpoint for scoring service
+- **Read Performance**: Excellent (local SQLite access via LiteFS)
+- **Write Performance**: Good (single primary writer)
+- **Replication Lag**: < 100ms between primary and replicas
+- **Algorithm Performance**: Direct database access (no API overhead)
 
 ### Data Persistence
-- **Persistent Volume**: Fly.io volume mounted at `/data`
-- **Database Backups**: Regular SQLite backups (future enhancement)
+- **LiteFS Replication**: Primary/replica pattern for data durability
+- **Volume Storage**: Persistent Fly.io volumes for database files
+- **Automatic Failover**: Primary promotion if current primary fails
 - **Event Sourcing**: Complete audit trail via scoreEvent table
 
 ## Security Considerations
