@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import { CID } from 'multiformats/cid'
 import { AtUri } from '@atproto/syntax'
+import { enableSyncToPds } from '../config'
 import type { AppContext } from '../context'
 import { httpLogger as log } from '../logger'
 import { createAuthenticatedPdsAgent, generateVoteRkey } from '../utils'
@@ -473,6 +474,10 @@ export async function putRecord(
  * This function handles network failures gracefully and doesn't throw errors
  */
 export async function syncToPds(ctx: AppContext): Promise<void> {
+  if (!enableSyncToPds) {
+    return
+  }
+
   if (!ctx.db) {
     log.warn('Database not available for PDS sync')
     return

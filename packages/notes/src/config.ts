@@ -1,5 +1,7 @@
 import { envInt, envStr } from '@atproto/common'
 
+export const enableSyncToPds = false
+
 export interface RepoAccount {
   did: string // Account DID (used for both identity and repository)
   key: any // Signing key (string or keypair object)

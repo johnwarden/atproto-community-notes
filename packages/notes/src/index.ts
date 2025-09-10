@@ -280,8 +280,8 @@ export class NotesService {
             'Create feed generator record in PDS',
           )
 
-          // Try to create the record idempotently
-          const { data } = await agent.com.atproto.repo.createRecord({
+          // Use putRecord for idempotent creation
+          const { data } = await agent.com.atproto.repo.putRecord({
             repo: serviceRepoId,
             collection: 'app.bsky.feed.generator',
             rkey: fg.rkey,
@@ -295,26 +295,22 @@ export class NotesService {
               rkey: fg.rkey,
               displayName: fg.displayName,
             },
-            'Feed generator record created successfully',
+            'Feed generator record created/updated successfully',
           )
         } catch (error: any) {
-          if (error?.message?.includes('RecordAlreadyExists')) {
-            log.debug({ rkey: fg.rkey }, 'Feed generator record already exists')
-          } else {
-            log.error(
-              {
-                rkey: fg.rkey,
-                error: error instanceof Error ? error.message : error,
-                errorName: error instanceof Error ? error.name : 'unknown',
-                errorStack: error instanceof Error ? error.stack : undefined,
-                serviceRepoId,
-                serviceDid: this.repoAccount?.did,
-              },
-              'Failed to create feed generator record - detailed error',
-            )
-            // Re-throw the error to fail the entire setup
-            throw error
-          }
+          log.error(
+            {
+              rkey: fg.rkey,
+              error: error instanceof Error ? error.message : error,
+              errorName: error instanceof Error ? error.name : 'unknown',
+              errorStack: error instanceof Error ? error.stack : undefined,
+              serviceRepoId,
+              serviceDid: this.repoAccount?.did,
+            },
+            'Failed to create feed generator record - detailed error',
+          )
+          // Re-throw the error to fail the entire setup
+          throw error
         }
       }
 
