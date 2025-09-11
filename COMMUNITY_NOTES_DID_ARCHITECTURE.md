@@ -25,18 +25,17 @@ FEEDGEN_DOCUMENT_DID=did:plc:your-feedgen-document-did
 ```
 
 ### 2. Repository Account DID (ACTOR)
-**Role**: Single repository for all records (simplified architecture)
+
+**Role**: Single repository for all records
 
 **Responsibilities**:
 - **Feed Repository**: Stores `app.bsky.feed.generator` records for feed discovery
 - **Notes Repository**: Stores `social.pmsky.proposal` and `social.pmsky.vote` records
-- **AID Generation**: Signing key used for Anonymous ID generation (privacy protection)
 - **PDS Authentication**: Authenticates with PDS for all record operations
 
 **Environment Variables**:
 ```bash
 REPO_DID=did:plc:your-repo-did
-REPO_SIGNING_KEY=your-repo-signing-key
 REPO_PASSWORD=your-repo-password
 ```
 
@@ -48,6 +47,7 @@ REPO_PASSWORD=your-repo-password
 - **Label Signing**: Signs labels with labeler signing key
 - **Actor Account**: Must be an actor (DID with PDS account) for `getActors()` to work
 - **Label Service**: Has `AtprotoLabeler` service in DID document
+- **Label Configuration Record**: Has `app.bsky.labeler.service/self` record with label configuration
 
 **Why Actor Required**: The labeler DID must be an **actor** (not just a document DID) because:
 - Bsky's `getActors()` method only returns DIDs that exist in the `actor` table
@@ -57,7 +57,6 @@ REPO_PASSWORD=your-repo-password
 **Environment Variables**:
 ```bash
 LABELER_DID=did:plc:your-labeler-actor-did
-LABELER_SIGNING_KEY=your-labeler-signing-key
 ```
 
 ## Development Environment Setup
@@ -142,30 +141,9 @@ const availableDids = labelers.filter(
 
 ## Production Deployment
 
-### 1. Create Feed Generator Document DID
+In production, the FEEDGEN_DOCUMENT_DID will be set to did:web:$DOMAIN. The notes service will serve an appropirate DID document at /.well-known/did.json.
 
-```bash
-# Create document DID with BskyFeedGenerator service
-curl -X POST https://plc.directory/xrpc/com.atproto.identity.submitPlcOperation \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "plc_operation",
-    "verificationMethods": {
-      "atproto": "did:key:your-public-key"
-    },
-    "rotationKeys": ["did:key:your-rotation-key"],
-    "alsoKnownAs": [],
-    "services": {
-      "bsky_fg": {
-        "type": "BskyFeedGenerator",
-        "serviceEndpoint": "https://your-domain.com"
-      }
-    },
-    "prev": null
-  }'
-```
-
-### 2. Create Repository Account
+### 1. Create Repository Account
 
 ```bash
 # Create single repository account for all records
@@ -178,82 +156,6 @@ curl -X POST https://your-pds.com/xrpc/com.atproto.server.createAccount \
   }'
 ```
 
-### 3. Create Labeler Account
-
-```bash
-# Create labeler account (must be actor for getActors() validation)
-curl -X POST https://your-pds.com/xrpc/com.atproto.server.createAccount \
-  -H "Content-Type: application/json" \
-  -d '{
-    "handle": "labeler.your-domain.com",
-    "email": "labeler@your-domain.com",
-    "password": "secure-password"
-  }'
-```
-
-### 4. Update Labeler DID document to include AtprotoLabeler service
- 
-Use PLC operation to add service to existing DID. Can do this with the [@skyware labeler](https://skyware.js.org/guides/labeler/introduction/getting-started/) or [https://github.com/johnwarden/atproto-labeler-starter-kit](https://github.com/johnwarden/atproto-labeler-starter-kit)
-
-Example DID document:
-
-{
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/multikey/v1",
-    "https://w3id.org/security/suites/secp256k1-2019/v1"
-  ],
-  "id": "did:plc:57fl6zy4wmpuknwpgtjqkvlz",
-  "alsoKnownAs": [
-    "at://testlabeler3.bsky.social"
-  ],
-  "verificationMethod": [
-    {
-      "id": "did:plc:57fl6zy4wmpuknwpgtjqkvlz#atproto",
-      "type": "Multikey",
-      "controller": "did:plc:57fl6zy4wmpuknwpgtjqkvlz",
-      "publicKeyMultibase": "zQ3shhA3msuXRaJUa5bb8ck5Hcfwm48cpjMPdAKJ9WjpyjG9z"
-    },
-    {
-      "id": "did:plc:57fl6zy4wmpuknwpgtjqkvlz#atproto_label",
-      "type": "Multikey",
-      "controller": "did:plc:57fl6zy4wmpuknwpgtjqkvlz",
-      "publicKeyMultibase": "zQ3shuC5NPVMRJ57SF7K4UJZ562WtoSunWgxPMyWHRNjcdqrP"
-    }
-  ],
-  "service": [
-    {
-      "id": "#atproto_pds",
-      "type": "AtprotoPersonalDataServer",
-      "serviceEndpoint": "https://chalciporus.us-west.host.bsky.network"
-    },
-    {
-      "id": "#atproto_labeler",
-      "type": "AtprotoLabeler",
-      "serviceEndpoint": "https://testlabeler3.c10t.es"
-    }
-  ]
-}
-### 4. Create Feed Generator Records
-
-```bash
-# Create feed generator records in repository account
-curl -X POST https://your-pds.com/xrpc/com.atproto.repo.createRecord \
-  -H "Authorization: Bearer $REPO_ACCESS_JWT" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "repo": "$REPO_DID",
-    "collection": "app.bsky.feed.generator",
-    "rkey": "new",
-    "record": {
-      "did": "$FEEDGEN_DOCUMENT_DID",
-      "displayName": "Community Notes: New",
-      "description": "Posts with the newest community notes",
-      "createdAt": "'$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)'"
-    }
-  }'
-```
-
 ## Code Architecture
 
 ### Repository Account Usage
@@ -263,17 +165,6 @@ curl -X POST https://your-pds.com/xrpc/com.atproto.repo.createRecord \
 const repoAgent = await createAuthenticatedPdsAgent(ctx, ctx.repoAccount)
 ```
 
-### AID Generation
-
-Anonymous IDs use the **Repository Account** signing key for privacy:
-
-```typescript
-// Generate Anonymous ID for proposal creator
-const creatorAid = generateAid(
-  userDid,
-  ctx.repoAccount.key // Repository account signing key (for rainbow table resistance)
-)
-```
 
 ## API Integration
 
@@ -350,38 +241,6 @@ Note: The `did` field returns the **document DID** (service host), while feed UR
 curl "https://your-domain.com/xrpc/app.bsky.feed.getFeedSkeleton?feed=at://did:plc:repo-did/app.bsky.feed.generator/new"
 ```
 
-## Security Considerations
-
-### Signing Key Usage
-
-1. **Feed Generator Document Signing Key**:
-   - Used for DID document operations only
-   - NOT used for repository operations
-   - NOT used for AID generation
-
-2. **Repository Account Signing Key**:
-   - Used for repository authentication to PDS
-   - Used for all record operations (feed, proposal, vote records)
-   - **Used for AID generation** (privacy-critical)
-
-3. **Labeler Signing Key**:
-   - Used for signing Community Notes labels
-   - Separate from repository operations
-   - Required for labeler functionality
-
-### AID Privacy
-
-Anonymous IDs are generated using the Repository Account signing key to ensure:
-- **Rainbow table resistance**: Repository key acts as secret salt
-- **Service binding**: Different services produce different AIDs
-- **Stability**: Same inputs always produce same AID
-- **Privacy**: User identity protected through anonymization
-
-### Key Management Notes
-
-- **Repository signing key is required**: Used for both authentication and AID generation
-- **Labeler signing key is required**: Used for label signing
-- **Document signing key is optional**: Only needed for DID document updates
 
 ## Architecture Benefits
 

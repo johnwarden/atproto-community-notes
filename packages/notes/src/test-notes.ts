@@ -145,37 +145,32 @@ export async function createFeedGeneratorDid(
   plcUrl: string,
   port: number,
 ): Promise<string> {
-  try {
-    const keypair = await Secp256k1Keypair.create({ exportable: true })
-    const plcClient = new plc.Client(plcUrl)
+  const keypair = await Secp256k1Keypair.create({ exportable: true })
+  const plcClient = new plc.Client(plcUrl)
 
-    const op = await plc.signOperation(
-      {
-        type: 'plc_operation',
-        verificationMethods: {
-          atproto: keypair.did(),
-        },
-        rotationKeys: [keypair.did()],
-        alsoKnownAs: [],
-        services: {
-          bsky_fg: {
-            type: 'BskyFeedGenerator',
-            endpoint: `http://localhost:${port}`,
-          },
-        },
-        prev: null,
+  const op = await plc.signOperation(
+    {
+      type: 'plc_operation',
+      verificationMethods: {
+        atproto: keypair.did(),
       },
-      keypair,
-    )
+      rotationKeys: [keypair.did()],
+      alsoKnownAs: [],
+      services: {
+        bsky_fg: {
+          type: 'BskyFeedGenerator',
+          endpoint: `http://localhost:${port}`,
+        },
+      },
+      prev: null,
+    },
+    keypair,
+  )
 
-    const did = await plc.didForCreateOp(op)
-    await plcClient.sendOperation(did, op)
+  const did = await plc.didForCreateOp(op)
+  await plcClient.sendOperation(did, op)
 
-    return did
-  } catch (error) {
-    console.error(`❌ Failed to create feed generator DID:`, error)
-    throw error
-  }
+  return did
 }
 
 export default TestNotes

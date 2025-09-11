@@ -70,13 +70,16 @@ deploy:
     @echo "🚀 Deploying Notes service..."
     fly deploy \
         --env NODE_ENV=${NODE_ENV} \
+        --env LOG_ENABLED=true \
+        --env LOG_LEVEL=${LOG_LEVEL} \
+        --env LOG_DESTINATION=${LOG_DESTINATION} \
         --env INTERNAL_API_HOST=${INTERNAL_API_HOST} \
         --env PDS_URL=${PDS_URL} \
+        --env LABELER_URL=${LABELER_URL} \
         --env DB_PATH=${DB_PATH} \
         --env REPO_DID=${REPO_DID} \
         --env FEEDGEN_DOCUMENT_DID=${FEEDGEN_DOCUMENT_DID} \
-        --env LABELER_DID=${LABELER_DID} \
-        --env LABELER_URL=${LABELER_URL}
+        --env LABELER_DID=${LABELER_DID}
 
 # Deploy with custom environment variables (for advanced usage)
 deploy-env *ARGS:

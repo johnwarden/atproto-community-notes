@@ -37,8 +37,6 @@ The Community Notes system consists of three main services:
 
 ## Configuration Management
 
-**No .env files with secrets**: All secrets stored in Fly.io secrets only.
-
 **Single .env file**: Contains only non-secret environment variables for production deployment.
 
 **Justfile reads .env**: Uses `set dotenv-load := true` to read non-secret variables.
@@ -80,12 +78,12 @@ LABELER_URL=https://labeler.example.com
 
 Development configuration is handled entirely by `dev-env` package - no .env file needed.
 
-#### Fly.io Secrets (Only)
-```bash
-# Repository Account Credentials
-REPO_PRIVATE_KEY=...
-REPO_PASSWORD=...
-```
+#### Secrets
+
+Export secrets from password manager to fly.io
+
+  just setup-secrets
+
 
 #### Required Environment Variables
 Per `config.ts`, these variables are required:
