@@ -38,12 +38,11 @@ export default function (server: Server, ctx: AppContext) {
       const viewerDid = authResult.did
 
       // Validate repository account configuration
-      if (!ctx.repoAccount?.did || !ctx.repoAccount?.key) {
+      if (!ctx.repoAccount?.did || !ctx.aidSalt) {
         throw new AuthRequiredError('Notes service configuration error')
       }
 
-      const servicePrivateKey = ctx.repoAccount.key
-      const viewerAid = generateAid(viewerDid, servicePrivateKey)
+      const viewerAid = generateAid(viewerDid, ctx.aidSalt)
 
       log.info(
         {

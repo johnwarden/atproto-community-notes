@@ -4,7 +4,6 @@ export const enableSyncToPds = false
 
 export interface RepoAccount {
   did: string // Account DID (used for both identity and repository)
-  key: any // Signing key (string or keypair object)
   password: string // Password for credential-based authentication
 }
 
@@ -13,6 +12,7 @@ export interface NotesServiceConfig {
   internalApiPort: number
   internalApiHost: string
   dbPath: string
+  aidSalt: string // Secret salt for Anonymous ID generation (privacy protection)
   repoAccount: RepoAccount // Repository account for all records
   feedgenDocumentDid: string // Feed generator document DID (service host)
   pdsUrl: string // PDS URL for AT Protocol record creation
@@ -33,8 +33,10 @@ export const readEnv = (): ServerEnvironment => {
 
     // repository account (for all records: proposals, votes, feed records)
     repoAccountDid: envStr('REPO_DID'),
-    repoAccountPrivateKey: envStr('REPO_PRIVATE_KEY'),
     repoAccountPassword: envStr('REPO_PASSWORD'),
+    
+    // AID generation salt (privacy protection)
+    aidSalt: envStr('AID_SALT'),
 
     feedgenDocumentDid: envStr('FEEDGEN_DOCUMENT_DID'),
 
@@ -57,8 +59,10 @@ export type ServerEnvironment = {
 
   // repository account (for all records: proposals, votes, feed records)
   repoAccountDid?: string
-  repoAccountPrivateKey?: string
   repoAccountPassword?: string
+  
+  // AID generation salt (privacy protection)
+  aidSalt?: string
 
   // feed generator document DID (service host)
   feedgenDocumentDid?: string
@@ -74,10 +78,7 @@ export interface DatabaseConfig {
 
 export interface RepoAccountConfig {
   did: string
-  key: string
   password: string
-  // Removed userDid - using single DID approach
-  // Removed JWT fields - using password authentication
 }
 
 export interface LabelerConfig {
@@ -123,6 +124,10 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     throw new Error('REPO_PASSWORD environment variable is required')
   }
 
+  if (!env.aidSalt) {
+    throw new Error('AID_SALT environment variable is required')
+  }
+
   if (!env.internalApiHost) {
     throw new Error('INTERNAL_API_HOST environment variable is required')
   }
@@ -133,13 +138,13 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     internalApiHost: env.internalApiHost,
     dbPath: env.dbPath,
     pdsUrl: env.pdsUrl!,
+    aidSalt: env.aidSalt,
     labeler: {
       did: env.labelerDid,
       url: env.labelerUrl,
     },
     repoAccount: {
       did: env.repoAccountDid,
-      key: env.repoAccountPrivateKey,
       password: env.repoAccountPassword,
     },
     feedgenDocumentDid: env.feedgenDocumentDid,

@@ -63,7 +63,6 @@ export class TestNotes {
 
       repoAccount = {
         did: repoTokens.did,
-        key: repoKeypair,
         password: 'service-password-123', // Use password instead of JWT tokens
       }
     } else {
@@ -83,6 +82,7 @@ export class TestNotes {
       internalApiPort,
       internalApiHost,
       dbPath: dbPath,
+      aidSalt: 'test-aid-salt-for-development', // Test salt for AID generation
       repoAccount: repoAccount,
       feedgenDocumentDid: feedgenDocumentDid,
       pdsUrl: config.pdsUrl,

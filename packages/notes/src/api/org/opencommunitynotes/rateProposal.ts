@@ -57,8 +57,7 @@ export default function (server: Server, ctx: AppContext) {
 
         const raterDid = authResult.did!
 
-        const servicePrivateKey = ctx.repoAccount.key
-        const raterAid = generateAid(raterDid, servicePrivateKey)
+        const raterAid = generateAid(raterDid, ctx.aidSalt)
 
         log.info(
           {

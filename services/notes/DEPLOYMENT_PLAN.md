@@ -362,7 +362,7 @@ Set these secrets in Fly.io:
 
 ```bash
 # Repository account credentials
-fly secrets set REPO_PRIVATE_KEY="your-repo-private-key"
+fly secrets set AID_SALT="your-aid-generation-salt"
 fly secrets set REPO_PASSWORD="your-repo-password"
 ```
 

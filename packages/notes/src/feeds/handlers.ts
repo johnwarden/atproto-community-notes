@@ -78,7 +78,7 @@ export default function registerFeedHandlers(
         notesDb: ctx.db,
         scoresDb: ctx.db,
         userDid,
-        servicePrivateKey: ctx.repoAccount.key,
+        servicePrivateKey: ctx.aidSalt,
       }
 
       const startTime = Date.now()

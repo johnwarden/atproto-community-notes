@@ -6,6 +6,7 @@ import { Database } from './db'
 export interface AppContext {
   auth: AuthService
   db: Database
+  aidSalt: string // Secret salt for Anonymous ID generation (privacy protection)
   repoAccount: RepoAccount // Repository account for all records (proposals, votes, feed records)
   feedgenDocumentDid: string // Feed generator DID (for backward compatibility)
   pdsUrl: string // PDS URL for AT Protocol record creation

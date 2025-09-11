@@ -154,16 +154,15 @@ export default function (server: Server, ctx: AppContext) {
         const creatorDid = authResult.did!
 
         // Validate repository account configuration
-        if (!ctx.repoAccount?.did || !ctx.repoAccount?.key) {
-          log.error('Repository account DID and private key must be configured')
+        if (!ctx.repoAccount?.did || !ctx.aidSalt) {
+          log.error('Repository account DID and AID salt must be configured')
           return {
             status: 500,
             message: 'Service configuration error',
           } as HandlerError
         }
 
-        const servicePrivateKey = ctx.repoAccount.key
-        const creatorAid = generateAid(creatorDid, servicePrivateKey)
+        const creatorAid = generateAid(creatorDid, ctx.aidSalt)
 
         // Normalize the target URI to resolve handles to DIDs for consistency
         let normalizedTargetUri: string

@@ -101,6 +101,7 @@ export class NotesService {
     const ctx: AppContext = {
       auth,
       db: this.db,
+      aidSalt: this.config.aidSalt,
       repoAccount: this.repoAccount,
       feedgenDocumentDid: this.feedgenDocumentDid,
       pdsUrl: this.pdsUrl,
@@ -221,11 +222,7 @@ export class NotesService {
    * Create feed generator records idempotently on service startup
    */
   private async createFeedGeneratorRecords(): Promise<void> {
-    if (
-      !this.repoAccount?.did ||
-      !this.repoAccount?.key ||
-      !this.config.pdsUrl
-    ) {
+    if (!this.repoAccount?.did || !this.config.pdsUrl) {
       throw new Error('Repository account/PDS URL not configured')
     }
 
