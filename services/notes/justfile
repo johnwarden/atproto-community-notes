@@ -59,14 +59,11 @@ setup-cert:
 
 # Set secrets interactively (SECRETS ONLY - never saved to files)
 setup-secrets:
-    @echo "🔑 Setting up secrets for Notes service..."
-    @echo "⚠️  You will be prompted to paste each secret. Secrets are never saved to files."
-    @echo ""
-    @echo "📝 Please paste your REPO_PRIVATE_KEY:"
-    @read -s PRIVATE_KEY && fly secrets set REPO_PRIVATE_KEY="$$PRIVATE_KEY"
-    @echo "📝 Please paste your REPO_PASSWORD:"
-    @read -s PASSWORD && fly secrets set REPO_PASSWORD="$$PASSWORD"
-    @echo "✅ All secrets configured securely for Notes service!"
+    #!/bin/zsh
+    source ./secrets.sh
+    fly secrets set AID_SALT="$AID_SALT"
+    fly secrets set REPO_PASSWORD="$REPO_PASSWORD"
+    echo "✅ All secrets configured securely for Notes service!"
 
 # Deploy Notes service to Fly.io
 deploy:
