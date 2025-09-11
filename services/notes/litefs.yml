@@ -1,0 +1,30 @@
+# LiteFS configuration for Community Notes Service
+# This enables shared SQLite database access across multiple machines
+
+# FUSE mount directory for LiteFS
+fuse:
+  dir: "/litefs"
+
+# Data directory where LiteFS stores its data
+data:
+  dir: "/var/lib/litefs"
+
+# No proxy - let Node.js app handle HTTP directly
+# LiteFS just provides shared database access
+
+# Lease configuration using Fly.io's Consul
+lease:
+  type: "consul"
+  candidate: ${FLY_REGION == PRIMARY_REGION}
+  promote: true
+
+  consul:
+    url: "${FLY_CONSUL_URL}"
+    key: "litefs/${FLY_APP_NAME}"
+
+# No backup configuration - using LiteFS replication only
+
+# Logging
+log:
+  level: "info"
+
