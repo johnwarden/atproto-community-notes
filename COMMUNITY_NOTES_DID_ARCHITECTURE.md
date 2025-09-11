@@ -21,7 +21,11 @@ The Community Notes service uses a **multi-DID architecture** following AT Proto
 
 **Environment Variables**:
 ```bash
-FEEDGEN_DOCUMENT_DID=did:plc:your-feedgen-document-did
+# Production (did:web format)
+FEEDGEN_DOCUMENT_DID=did:web:your-domain.com
+
+# Development (PLC DID - auto-generated)
+FEEDGEN_DOCUMENT_DID=did:plc:generated-by-dev-env
 ```
 
 ### 2. Repository Account DID (ACTOR)
@@ -141,7 +145,19 @@ const availableDids = labelers.filter(
 
 ## Production Deployment
 
-In production, the FEEDGEN_DOCUMENT_DID will be set to did:web:$DOMAIN. The notes service will serve an appropirate DID document at /.well-known/did.json.
+### Feed Generator DID: did:web Pattern
+
+In production, set `FEEDGEN_DOCUMENT_DID=did:web:your-domain.com` where `your-domain.com` is your service domain.
+
+**How it works**:
+1. Set environment variable: `FEEDGEN_DOCUMENT_DID=did:web:your-domain.com`
+2. The service automatically serves the DID document at `https://your-domain.com/.well-known/did.json`
+3. The DID document contains the `BskyFeedGenerator` service endpoint
+4. No manual DID creation or PLC operations needed
+
+**Development vs Production**:
+- **Development**: Uses PLC DIDs (auto-generated) because `did:web:localhost` won't resolve
+- **Production**: Uses `did:web:domain` format with automatic DID document serving
 
 ### 1. Create Repository Account
 
@@ -206,8 +222,8 @@ Dev-env introspection exposes all DIDs for debugging:
 {
   "notes": {
     "url": "http://localhost:2595",
-    "feedgenDocumentDid": "did:plc:feedgen-document-did",
-    "repoDid": "did:plc:repo-did",
+    "feedgenDocumentDid": "did:web:your-domain.com",
+    "repoDid": "did:plc:repo-did", 
     "labelerDid": "did:plc:labeler-actor-did"
   }
 }
@@ -224,7 +240,7 @@ curl https://your-domain.com/xrpc/app.bsky.feed.describeFeedGenerator
 Returns:
 ```json
 {
-  "did": "did:plc:feedgen-document-did",
+  "did": "did:web:your-domain.com",
   "feeds": [
     {"uri": "at://did:plc:repo-did/app.bsky.feed.generator/new"},
     {"uri": "at://did:plc:repo-did/app.bsky.feed.generator/needs_your_help"},

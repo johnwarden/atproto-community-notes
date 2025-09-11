@@ -1,6 +1,6 @@
 # Community Notes Service - Production Deployment Plan
 
-TODO: FEEDGEN_DOCUMENT_DID will no be did:web:$NOTES_SERVICE_DOMAIN. We serve a dynamic /.well-known/did.json from that endpoint.
+**Feed Generator DID**: In production, set `FEEDGEN_DOCUMENT_DID=did:web:$DOMAIN` where `$DOMAIN` is your service domain. The service serves the DID document at `/.well-known/did.json`.
 TODO: INTERNAL_API_HOST
 
 ## Overview
@@ -67,7 +67,7 @@ PRIMARY_REGION=sjc
 
 # DIDs (public, not secrets)
 REPO_DID=did:plc:actual-production-repo-did
-FEEDGEN_DOCUMENT_DID=did:plc:actual-production-feedgen-did
+FEEDGEN_DOCUMENT_DID=did:web:your-domain.com
 LABELER_DID=did:plc:actual-production-labeler-did
 
 # Labeler Service
@@ -485,29 +485,15 @@ fly secrets set REPO_DID="did:plc:returned-repo-did"
 fly secrets set REPO_PASSWORD="secure-password"
 ```
 
-### 2. Feed Generator Document DID Creation
+### 2. Feed Generator Document DID Setup
 ```bash
-# Create document DID with BskyFeedGenerator service
-curl -X POST https://plc.directory/xrpc/com.atproto.identity.submitPlcOperation \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "plc_operation",
-    "verificationMethods": {
-      "atproto": "did:key:your-public-key"
-    },
-    "rotationKeys": ["did:key:your-rotation-key"],
-    "alsoKnownAs": [],
-    "services": {
-      "bsky_fg": {
-        "type": "BskyFeedGenerator",
-        "serviceEndpoint": "https://notes.fly.dev"
-      }
-    },
-    "prev": null
-  }'
+# In production, use did:web format with your domain
+# No manual DID creation needed - the service serves /.well-known/did.json
+export FEEDGEN_DOCUMENT_DID="did:web:your-domain.com"
 
-# Store the returned DID in environment
-export FEEDGEN_DOCUMENT_DID="did:plc:returned-feedgen-did"
+# The service automatically serves the DID document at:
+# https://your-domain.com/.well-known/did.json
+# with the BskyFeedGenerator service endpoint
 ```
 
 ### 3. Feed Generator Records Creation
