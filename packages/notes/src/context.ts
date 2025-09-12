@@ -3,6 +3,8 @@ import { AuthService } from './auth'
 import { NotesServiceConfig, RepoAccount } from './config'
 import { Database } from './db'
 
+import { AtpAgent } from '@atproto/api'
+
 export interface AppContext {
   auth: AuthService
   db: Database
@@ -13,4 +15,9 @@ export interface AppContext {
   reqLabelers: () => Record<string, any>
   config: NotesServiceConfig
   notesService: NotesService // NotesService instance to avoid circular imports
+  pdsAgent?: {
+    agent: AtpAgent
+    serviceRepoId: string
+    lastRefresh: Date
+  }
 }

@@ -4,7 +4,7 @@ import { AtUri } from '@atproto/syntax'
 import { enableSyncToPds } from '../config'
 import type { AppContext } from '../context'
 import { httpLogger as log } from '../logger'
-import { createAuthenticatedPdsAgent, generateVoteRkey } from '../utils'
+import { getOrCreatePdsAgent, generateVoteRkey } from '../utils'
 import type { Database } from './index'
 
 /**
@@ -500,7 +500,7 @@ export async function syncToPds(ctx: AppContext): Promise<void> {
   // Create PDS agent once for the entire batch
   let agent, serviceRepoId
   try {
-    const pdsAgent = await createAuthenticatedPdsAgent(ctx)
+    const pdsAgent = await getOrCreatePdsAgent(ctx)
     agent = pdsAgent.agent
     serviceRepoId = pdsAgent.serviceRepoId
   } catch (error) {

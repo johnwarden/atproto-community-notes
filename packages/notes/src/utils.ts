@@ -140,6 +140,45 @@ export async function validateCidForBytes(
 }
 
 /**
+ * Get or create authenticated PDS agent with caching
+ * Reuses cached agent if valid (< 30 minutes old), otherwise creates new one
+ * Provides performance benefits while handling session expiration gracefully
+ */
+export async function getOrCreatePdsAgent(ctx: AppContext): Promise<{
+  agent: AtpAgent
+  serviceRepoId: string
+}> {
+  // Check if we have a cached agent that's still valid (< 30 minutes old)
+  if (ctx.pdsAgent && 
+      Date.now() - ctx.pdsAgent.lastRefresh.getTime() < 30 * 60 * 1000) {
+    try {
+      // Quick session validation
+      await ctx.pdsAgent.agent.com.atproto.server.getSession()
+      log.debug('Using cached PDS agent')
+      return {
+        agent: ctx.pdsAgent.agent,
+        serviceRepoId: ctx.pdsAgent.serviceRepoId
+      }
+    } catch (err) {
+      // Session invalid, will create new one below
+      log.debug('Cached PDS agent session invalid, creating new one')
+    }
+  }
+
+  // Create new authenticated agent
+  const result = await createAuthenticatedPdsAgent(ctx)
+  
+  // Cache it
+  ctx.pdsAgent = {
+    ...result,
+    lastRefresh: new Date()
+  }
+  
+  log.debug('Created and cached new PDS agent')
+  return result
+}
+
+/**
  * Create authenticated PDS agent using credential-based authentication
  * Uses DID + password to get fresh tokens automatically
  * Handles session validation and re-authentication when needed
@@ -364,7 +403,7 @@ export async function normalizeAtUri(
     // Try to resolve the handle to a DID
     // First, try to create an authenticated PDS agent to resolve the handle
     try {
-      const { agent } = await createAuthenticatedPdsAgent(ctx)
+      const { agent } = await getOrCreatePdsAgent(ctx)
 
       // Use the PDS agent to resolve the handle
       const result = await agent.com.atproto.identity.resolveHandle({

@@ -20,7 +20,7 @@ import { createServer } from './lexicon'
 import { httpLogger as log, loggerMiddleware } from './logger'
 import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
-import { createAuthenticatedPdsAgent } from './utils'
+import { getOrCreatePdsAgent } from './utils'
 import wellKnown from './well-known'
 
 // Create scoring-specific logger
@@ -211,7 +211,10 @@ export class NotesService {
     const internalApiPort = this.config.internalApiPort
 
     this.internalServer.listen(internalApiPort, '::', () => {
-      log.info({ internalApiHost: '::', internalApiPort }, `Internal HTTP listening on IPv6`)
+      log.info(
+        { internalApiHost: '::', internalApiPort },
+        `Internal HTTP listening on IPv6`,
+      )
     })
 
     return this.server
@@ -229,12 +232,11 @@ export class NotesService {
     try {
       log.info('Creating Community Notes feed generator records...')
 
-      const { agent: pdsAgent, serviceRepoId } =
-        await createAuthenticatedPdsAgent({
-          repoAccount: this.repoAccount,
-          pdsUrl: this.config.pdsUrl,
-          db: this.db,
-        } as AppContext)
+      const { agent: pdsAgent, serviceRepoId } = await getOrCreatePdsAgent({
+        repoAccount: this.repoAccount,
+        pdsUrl: this.config.pdsUrl,
+        db: this.db,
+      } as AppContext)
 
       agent = pdsAgent
 

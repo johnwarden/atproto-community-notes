@@ -14,7 +14,7 @@ import {
 import { httpLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import {
-  createAuthenticatedPdsAgent,
+  getOrCreatePdsAgent,
   generateAid,
   generatePseudonymFromAid,
   normalizeAtUri,
@@ -42,7 +42,7 @@ async function validateTargetUri(
     // First, try the local PDS if available
     if (ctx.pdsUrl) {
       try {
-        const { agent } = await createAuthenticatedPdsAgent(ctx)
+        const { agent } = await getOrCreatePdsAgent(ctx)
         await agent.com.atproto.repo.getRecord({
           repo: atUri.host,
           collection: atUri.collection,
