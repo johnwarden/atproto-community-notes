@@ -1,7 +1,6 @@
 # Community Notes Service - Production Deployment Plan
 
 **Feed Generator DID**: In production, set `FEEDGEN_DOCUMENT_DID=did:web:$DOMAIN` where `$DOMAIN` is your service domain. The service serves the DID document at `/.well-known/did.json`.
-TODO: INTERNAL_API_HOST
 
 ## Overview
 
@@ -49,12 +48,8 @@ Based on the new PDS-style configuration system and multi-DID architecture:
 ```bash
 # Service Configuration
 NODE_ENV=production
-PORT=8081                    # Main API port (also in fly.toml)
-INTERNAL_API_PORT=8082      # Internal service API port (also in fly.toml)
-
-# Internal Service Communication
-# If not set, app will use FLY_PRIVATE_IPV6 for internal host
-INTERNAL_API_HOST=
+PORT=8080                    # Main API port (also in fly.toml)
+INTERNAL_API_PORT=8081      # Internal service API port (also in fly.toml)
 
 # External Services
 PDS_URL=https://bsky.network
@@ -89,7 +84,6 @@ Export secrets from password manager to fly.io
 Per `config.ts`, these variables are required:
 - `PORT` - Main service port (set in fly.toml [env])
 - `INTERNAL_API_PORT` - Internal API port (set in fly.toml [env])
-- `INTERNAL_API_HOST` - Internal service host (optional, defaults to FLY_PRIVATE_IPV6)
 - `DB_PATH` - SQLite database path
 - `PDS_URL` - AT Protocol PDS URL
 - `REPO_DID` - Repository account DID
@@ -202,10 +196,9 @@ Key tables for the event-sourced label system:
 - `record` - Proposals and ratings from AT Protocol
 
 ### Internal Service Communication
-- **INTERNAL_API_HOST**: Optional environment variable for internal service communication
-- **Default Behavior**: If not set, app automatically uses `process.env.FLY_PRIVATE_IPV6`
-- **Fly.io Integration**: FLY_PRIVATE_IPV6 provides secure internal networking between services
-- **Scoring Service**: Will use this to call Notes Service `/score` endpoint on port 8082
+- **Internal Service Communication**: Uses IPv6 binding ('::') for internal API
+- **Fly.io Integration**: Services communicate via internal networking on port 8081
+- **Scoring Service**: Will use this to call Notes Service `/score` endpoint on port 8081
 
 ### Fly.io Configuration Details
 
@@ -217,13 +210,13 @@ primary_region = 'sjc'
 [build]
 
 [env]
-  PORT = '8081'
-  INTERNAL_API_PORT = '8082'
+  PORT = '8080'
+  INTERNAL_API_PORT = '8081'
   PRIMARY_REGION = 'sjc'
 
 [[services]]
   protocol = "tcp"
-  internal_port = 8081
+  internal_port = 8080
   processes = ["app"]
 
   [[services.ports]]
@@ -305,7 +298,7 @@ CMD ["node", "--heapsnapshot-signal=SIGUSR2", "--enable-source-maps", "index.js"
 - All secrets set via `fly secrets set`
 - **Port configuration**: PORT and INTERNAL_API_PORT set in fly.toml [env] to stay in sync with internal_port
 - **Most env vars passed via deploy**: Except ports which are hardcoded in fly.toml
-- **INTERNAL_API_HOST**: Optional variable, defaults to FLY_PRIVATE_IPV6 for internal service communication
+- **Internal API**: Uses IPv6 binding for secure internal service communication
 
 #### Setup Commands
 - `just fly-setup`: Complete setup (app creation, secrets, volume, deploy)
@@ -342,8 +335,8 @@ fly deploy --config fly.toml
 ```
 
 This deploys:
-- **Notes Service**: HTTP API on port 8081 (Node.js app)
-- **Internal API**: Internal `/score` endpoint on port 8082
+- **Notes Service**: HTTP API on port 8080 (Node.js app)
+- **Internal API**: Internal `/score` endpoint on port 8081
 - **Database**: `/litefs/notes.db` (LiteFS FUSE mount)
 
 ### 2. Deploy Scoring Service (Future)
@@ -383,7 +376,7 @@ fly volumes create litefs --region sjc --size 10
 ### Notes Service (Primary)
 - **Reads**: Direct SQLite access via LiteFS FUSE mount
 - **Writes**: All user operations (proposals, ratings) and label sync
-- **Ports**: 8081 (main API), 8082 (internal `/score` endpoint)
+- **Ports**: 8080 (main API), 8081 (internal `/score` endpoint)
 - **LiteFS Role**: Primary node for database writes
 
 ### Scoring Service (Replica)

@@ -10,7 +10,6 @@ export interface RepoAccount {
 export interface NotesServiceConfig {
   port: number
   internalApiPort: number
-  internalApiHost: string
   dbPath: string
   aidSalt: string // Secret salt for Anonymous ID generation (privacy protection)
   repoAccount: RepoAccount // Repository account for all records
@@ -24,7 +23,6 @@ export const readEnv = (): ServerEnvironment => {
     // service
     port: envInt('PORT'),
     internalApiPort: envInt('INTERNAL_API_PORT'),
-    internalApiHost: envStr('INTERNAL_API_HOST') || envStr('FLY_PRIVATE_IPV6'),
     nodeEnv: envStr('NODE_ENV'),
     pdsUrl: envStr('PDS_URL'),
 
@@ -50,7 +48,6 @@ export type ServerEnvironment = {
   // service
   port?: number
   internalApiPort?: number
-  internalApiHost?: string
   nodeEnv?: string
   pdsUrl?: string
 
@@ -128,14 +125,9 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     throw new Error('AID_SALT environment variable is required')
   }
 
-  if (!env.internalApiHost) {
-    throw new Error('INTERNAL_API_HOST environment variable is required')
-  }
-
   return {
     port: env.port,
     internalApiPort: env.internalApiPort,
-    internalApiHost: env.internalApiHost,
     dbPath: env.dbPath,
     pdsUrl: env.pdsUrl!,
     aidSalt: env.aidSalt,

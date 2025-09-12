@@ -208,11 +208,10 @@ export class NotesService {
 
     this.server.listen(port)
 
-    const internalApiHost = this.config.internalApiHost
     const internalApiPort = this.config.internalApiPort
 
-    this.internalServer.listen(internalApiPort, internalApiHost, () => {
-      log.info({ internalApiHost, internalApiPort }, `Internal HTTP listening`)
+    this.internalServer.listen(internalApiPort, '::', () => {
+      log.info({ internalApiHost: '::', internalApiPort }, `Internal HTTP listening on IPv6`)
     })
 
     return this.server

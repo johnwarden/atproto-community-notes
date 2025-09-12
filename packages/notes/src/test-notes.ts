@@ -14,13 +14,11 @@ export interface DidAndKey {
 // This implements the NotesTestService interface defined in dev-env
 // but we don't import it to avoid circular dependency
 export class TestNotes {
-  public url: string
   public internalUrl: string
   constructor(
-    // public internalUrl: string,
+    public url: string,
     public port: number,
     public internalApiPort: number,
-    public internalApiHost: string,
     public server: NotesService,
     public repoAccount: RepoAccount,
     public dbPath: string,
@@ -28,14 +26,12 @@ export class TestNotes {
     public labelerDid: string,
     public labelerUrl: string,
   ) {
-    this.internalUrl = `http://[${internalApiHost}]:${internalApiPort}`
-    this.url = `http://localhost:${port}`
+    this.internalUrl = `http://localhost:${internalApiPort}`
   }
 
   static async create(config: {
     port: number
     internalApiPort: number
-    internalApiHost: string
     plcUrl: string
     pdsUrl: string
     labelerDid: string
@@ -43,7 +39,6 @@ export class TestNotes {
   }): Promise<TestNotes> {
     const port = config.port
     const internalApiPort = config.internalApiPort
-    const internalApiHost = config.internalApiHost
 
     const dbPath = path.join(
       os.tmpdir(),
@@ -80,7 +75,6 @@ export class TestNotes {
     const server = await NotesService.create({
       port,
       internalApiPort,
-      internalApiHost,
       dbPath: dbPath,
       aidSalt: 'test-aid-salt-for-development', // Test salt for AID generation
       repoAccount: repoAccount,
@@ -95,9 +89,9 @@ export class TestNotes {
     await server.start()
 
     return new TestNotes(
+      `http://localhost:${port}`,
       port,
       internalApiPort,
-      internalApiHost,
       server,
       repoAccount,
       dbPath,

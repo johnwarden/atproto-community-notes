@@ -9,13 +9,14 @@ primary_region = 'sjc'
 [build]
 
 [env]
-  PORT = '8081'
-  INTERNAL_API_PORT = '8082'
+  PORT = '8080'
+  INTERNAL_API_PORT = '8081'
   PRIMARY_REGION = 'sjc'
 
+# Main API service (external)
 [[services]]
   protocol = "tcp"
-  internal_port = 8081
+  internal_port = 8080
   processes = ["app"]
 
   [[services.ports]]
@@ -38,6 +39,13 @@ primary_region = 'sjc'
     grace_period = "1s"
     method = "GET"
     path = "/health"
+
+# Internal API service (internal only)
+[[services]]
+  protocol = "tcp"
+  internal_port = 8081
+  processes = ["app"]
+  # No external ports - internal only
 
 [processes]
   app = "node index.js"

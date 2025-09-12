@@ -52,7 +52,7 @@ const run = async () => {
       dbTeamProfileRefreshIntervalMs: 24 * 60 * 60 * 1000, // 24 hours
     },
     introspect: { port: 2581 },
-    notes: { port: 2595, internalApiPort: 2596, internalApiHost: '::1' },
+    notes: { port: 2595, internalApiPort: 2596 },
     // Add labeler and notes services
     labeler: { port: 2597 },
   })

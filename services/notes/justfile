@@ -7,13 +7,16 @@ set dotenv-load := true
 default:
     @just --list
 
+# Set up internal endpoint for local development
+export INTERNAL_ENDPOINT := if env_var_or_default("FLY_PRIVATE_IPV6", "") != "" { "http://[" + env_var("FLY_PRIVATE_IPV6") + "]:8081" } else { "http://localhost:8081" }
+
 # Check environment variables (non-sensitive only)
 env:
     @echo "🔧 Environment variables status:"
     @echo "NODE_ENV: ${NODE_ENV:-'not set'}"
     @echo "PORT: ${PORT:-'not set'}"
     @echo "INTERNAL_API_PORT: ${INTERNAL_API_PORT:-'not set'}"
-    @echo "INTERNAL_API_HOST: ${INTERNAL_API_HOST:-'not set (will use FLY_PRIVATE_IPV6)'}"
+    @echo "INTERNAL_ENDPOINT: {{INTERNAL_ENDPOINT}}"
     @echo "PDS_URL: ${PDS_URL:-'not set'}"
     @echo "DB_PATH: ${DB_PATH:-'not set'}"
     @echo "REPO_DID: ${REPO_DID:-'not set'}"
@@ -29,6 +32,32 @@ status: health fly-status
 health:
     @echo "\n🏥 Checking service health..."
     @curl -s "https://notes.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
+
+# === Internal API Testing ===
+
+# Check internal API health
+internal-health:
+    @echo "🏥 Checking internal API health..."
+    @curl -s "{{INTERNAL_ENDPOINT}}/internal/_health" | jq . || echo "❌ Internal API not responding"
+
+# Test internal /score endpoint with sample data
+test-score-endpoint:
+    @echo "🧪 Testing internal /score endpoint..."
+    @curl -s -X POST "{{INTERNAL_ENDPOINT}}/score" \
+        -H "Content-Type: application/json" \
+        -d '{"proposalUri": "at://did:example/social.pmsky.proposal/test", "status": "rated_helpful", "score": 0.8}' \
+        | jq . || echo "❌ Score endpoint not responding"
+
+# Set score for a specific proposal (interactive)
+set-score PROPOSAL_URI STATUS SCORE:
+    @echo "📊 Setting score for proposal..."
+    @curl -s -X POST "{{INTERNAL_ENDPOINT}}/score" \
+        -H "Content-Type: application/json" \
+        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}' \
+        | jq .
+
+# Complete internal API status check
+internal-status: internal-health test-score-endpoint
 
 
 # === LiteFS Setup ===
@@ -73,7 +102,6 @@ deploy:
         --env LOG_ENABLED=true \
         --env LOG_LEVEL=${LOG_LEVEL} \
         --env LOG_DESTINATION=${LOG_DESTINATION} \
-        --env INTERNAL_API_HOST=${INTERNAL_API_HOST} \
         --env PDS_URL=${PDS_URL} \
         --env LABELER_URL=${LABELER_URL} \
         --env DB_PATH=${DB_PATH} \
