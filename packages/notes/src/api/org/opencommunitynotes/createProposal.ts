@@ -36,62 +36,63 @@ async function validateTargetUri(
   try {
     // Parse the AT Protocol URI
     const atUri = new AtUri(targetUri)
+    const isDevelopment = ctx.pdsUrl.includes('localhost') || 
+                         process.env.NODE_ENV === 'development'
 
-    // Try multiple validation approaches for better network coverage
+    // Try PDS validation first (PDS is always configured)
+    try {
+      const { agent } = await getOrCreatePdsAgent(ctx)
+      await agent.com.atproto.repo.getRecord({
+        repo: atUri.host,
+        collection: atUri.collection,
+        rkey: atUri.rkey,
+      })
 
-    // First, try the local PDS if available
-    if (ctx.pdsUrl) {
-      try {
-        const { agent } = await getOrCreatePdsAgent(ctx)
-        await agent.com.atproto.repo.getRecord({
+      log.info(
+        {
+          targetUri,
           repo: atUri.host,
           collection: atUri.collection,
           rkey: atUri.rkey,
-        })
+          method: 'pds_validation',
+        },
+        'Target URI validation successful via PDS',
+      )
 
+      return { valid: true }
+    } catch (pdsError) {
+      log.debug(
+        {
+          targetUri,
+          error: pdsError instanceof Error ? pdsError.message : 'Unknown error',
+          method: 'pds_validation',
+        },
+        'PDS validation failed, checking fallback options',
+      )
+
+      // Environment-specific fallback behavior
+      if (isDevelopment) {
+        // In development, allow format validation for external URLs
+        // This enables testing with live Bluesky content
         log.info(
           {
             targetUri,
             repo: atUri.host,
             collection: atUri.collection,
             rkey: atUri.rkey,
-            method: 'local_pds',
+            method: 'format_validation_dev',
           },
-          'Target URI validation successful via local PDS',
+          'Development environment: allowing external URI after format validation',
         )
-
         return { valid: true }
-      } catch (localError) {
-        log.debug(
-          {
-            targetUri,
-            error:
-              localError instanceof Error
-                ? localError.message
-                : 'Unknown error',
-            method: 'local_pds',
-          },
-          'Local PDS validation failed, trying alternative methods',
-        )
+      } else {
+        // In production, be strict - require the record to be accessible via configured PDS
+        return {
+          valid: false,
+          error: `Target URI not accessible via configured PDS: ${targetUri}`,
+        }
       }
     }
-
-    // If local PDS fails, validate URI format and allow external records in development
-    // This is a pragmatic approach for development environments where we want to test
-    // with real external content but don't have full network federation set up
-
-    log.info(
-      {
-        targetUri,
-        repo: atUri.host,
-        collection: atUri.collection,
-        rkey: atUri.rkey,
-        method: 'format_validation',
-      },
-      'Local PDS validation failed, but URI format is valid - allowing for development',
-    )
-
-    return { valid: true }
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : 'Unknown error'
