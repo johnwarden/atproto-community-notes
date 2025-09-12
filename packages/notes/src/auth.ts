@@ -6,6 +6,47 @@ export interface AuthResult {
   error?: string
 }
 
+interface AtProtoJwtPayload {
+  iss?: string // Issuer (PDS URL)
+  sub?: string // Subject (user DID)
+  aud?: string // Audience
+  exp?: number // Expiration time
+  iat?: number // Issued at time
+}
+
+/**
+ * Decode JWT payload without signature verification.
+ * This is safe for our use case since we validate tokens via PDS getSession endpoint.
+ */
+function unsafeDecodeJwt(token: string): AtProtoJwtPayload {
+  try {
+    // Split JWT into header.payload.signature
+    const parts = token.split('.')
+
+    if (parts.length !== 3) {
+      throw new Error('Invalid JWT format - must have 3 parts')
+    }
+
+    // Decode the payload (second part)
+    const payload = parts[1]
+
+    // Add padding if needed for base64url decoding
+    const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4)
+
+    // Convert base64url to base64
+    const base64 = paddedPayload.replace(/-/g, '+').replace(/_/g, '/')
+
+    // Decode base64 to JSON
+    const jsonPayload = Buffer.from(base64, 'base64').toString('utf8')
+
+    return JSON.parse(jsonPayload)
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error'
+    throw new Error(`Failed to decode JWT: ${errorMessage}`)
+  }
+}
+
 export class AuthService {
   private pdsUrl: string
 
@@ -29,8 +70,7 @@ export class AuthService {
     const token = authHeader.slice(7) // Remove 'Bearer ' prefix
 
     try {
-      // Extract the PDS URL from the token (simplified approach)
-      // In a real implementation, we'd decode the JWT to get the issuer
+      // Extract the PDS URL from the JWT token's issuer (iss) claim
       const pdsUrl = await this.extractPdsFromToken(token)
 
       if (!pdsUrl) {
@@ -77,21 +117,52 @@ export class AuthService {
   }
 
   /**
-   * Extract PDS URL from JWT token.
-   * This is a simplified implementation - in production we'd properly decode the JWT.
+   * Extract PDS URL from JWT token by decoding the issuer (iss) claim.
+   * Falls back to configured PDS URL if extraction fails.
    */
   private async extractPdsFromToken(token: string): Promise<string | null> {
     try {
-      // For now, we'll use the configured PDS URL
-      // In production, we'd decode the JWT and extract the issuer (iss) claim
-      // which should be the PDS URL
+      // Decode the JWT token to access its claims
+      const payload = unsafeDecodeJwt(token)
 
-      return this.pdsUrl
+      // Extract the issuer (iss) claim which should contain the PDS URL
+      const pdsUrl = payload.iss
+
+      if (!pdsUrl || typeof pdsUrl !== 'string') {
+        log.warn(
+          { tokenPayload: payload },
+          'JWT token missing or invalid issuer claim, falling back to configured PDS URL',
+        )
+        return this.pdsUrl
+      }
+
+      // Validate that the issuer looks like a valid URL
+      try {
+        new URL(pdsUrl)
+      } catch (urlError) {
+        log.warn(
+          { pdsUrl, error: urlError },
+          'JWT issuer claim is not a valid URL, falling back to configured PDS URL',
+        )
+        return this.pdsUrl
+      }
+
+      log.debug(
+        { extractedPdsUrl: pdsUrl, configuredPdsUrl: this.pdsUrl },
+        'Successfully extracted PDS URL from JWT token',
+      )
+
+      return pdsUrl
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error'
-      log.error({ error: errorMessage }, 'Failed to extract PDS URL from token')
-      return null
+      log.warn(
+        { error: errorMessage },
+        'Failed to decode JWT token, falling back to configured PDS URL',
+      )
+
+      // Fall back to configured PDS URL for backward compatibility
+      return this.pdsUrl
     }
   }
 
