@@ -7,7 +7,6 @@ import {
   createTestScoredProposals,
   createTestUsers,
   getProposals,
-  resetBskySchema,
   setProposalScore,
 } from './test-utils'
 
@@ -24,7 +23,7 @@ describe('Label Hydration', () => {
 
   test('setup', async () => {
     // Create TestNetwork with clean schema reset
-    network = await createTestNetwork(true)
+    network = await createTestNetwork()
 
     // Create test users
     users = await createTestUsers(network)
@@ -405,6 +404,5 @@ describe('Label Hydration', () => {
     } catch (error: any) {
       process.stderr.write(`⚠️ Cleanup error: ${error.message}\n`)
     }
-    await resetBskySchema()
   })
 })

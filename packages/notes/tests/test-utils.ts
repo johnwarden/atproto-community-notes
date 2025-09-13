@@ -1,7 +1,6 @@
 import path from 'node:path'
 import getPort from 'get-port'
 import { Kysely, PostgresDialect, sql } from 'kysely'
-import { Pool } from 'pg'
 import { AtpAgent } from '@atproto/api'
 import { TestNetworkWrapper } from '../src/dev-env/test-network-wrapper'
 export interface TestUser {
@@ -355,32 +354,6 @@ export async function expectValidationError(response: Response): Promise<void> {
 }
 
 /**
- * Reset Bsky database schema by dropping and recreating it
- * Notes service uses SQLite, so only Bsky needs schema reset
- */
-export async function _resetBskySchema(
-  dbPostgresUrl: string,
-  bskySchema: string,
-): Promise<void> {
-  // Create a temporary database connection for schema operations
-  const pool = new Pool({ connectionString: dbPostgresUrl })
-  const db = new Kysely({ dialect: new PostgresDialect({ pool }) })
-
-  try {
-    // Reset Bsky database schema
-    await sql`DROP SCHEMA IF EXISTS ${sql.id(bskySchema)} CASCADE`.execute(db)
-    await sql`CREATE SCHEMA ${sql.id(bskySchema)}`.execute(db)
-  } finally {
-    // Clean up the temporary connection
-    try {
-      await db.destroy()
-    } catch (error) {
-      process.stderr.write(`db.destroy(): $error\n`)
-    }
-  }
-}
-
-/**
  * Create TestNetwork with clean database schema reset
  * This is the recommended way to create TestNetwork for integration tests
  */
@@ -425,39 +398,9 @@ export function getAutoDetectedSchemaName(): string {
   return 'test_unknown'
 }
 
-/**
- * Reset Bsky schema with auto-detected schema name
- * This is the recommended cleanup function for tests
- */
-export async function resetBskySchema(): Promise<void> {
-  const dbPostgresUrl = process.env.DB_POSTGRES_URL!
-  const schemaName = getAutoDetectedSchemaName()
-
-  try {
-    await _resetBskySchema(dbPostgresUrl, schemaName)
-  } catch (error: any) {
-    process.stderr.write(`⚠️ Schema reset error: ${error.message}\n`)
-    throw error // Re-throw to ensure test failures are visible
-  }
-}
-
-export async function createTestNetwork(
-  resetBskySchema: boolean = false,
-): Promise<TestNetworkWrapper> {
-  const schemaName = getAutoDetectedSchemaName()
-
-  if (resetBskySchema) {
-    const dbPostgresUrl = process.env.DB_POSTGRES_URL!
-
-    // Reset Bsky schema BEFORE creating TestNetwork for clean setup
-    try {
-      await _resetBskySchema(dbPostgresUrl, schemaName)
-    } catch (error: any) {
-      process.stderr.write(`🚨 SCHEMA RESET FAILED: ${error.message}\n`)
-      process.stderr.write(`🚨 Stack trace: ${error.stack}\n`)
-      throw new Error(`Database schema reset failed: ${error.message}`)
-    }
-  }
+export async function createTestNetwork(): Promise<TestNetworkWrapper> {
+  // Use a single shared schema for all tests to reduce startup overhead
+  const schemaName = 'test_shared'
 
   // Create TestNetworkWrapper with clean schemas and notes/labeler services
   try {
