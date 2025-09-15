@@ -631,3 +631,4 @@ export class NotesService {
 }
 
 export default NotesService
+export { envToCfg, readEnv }
