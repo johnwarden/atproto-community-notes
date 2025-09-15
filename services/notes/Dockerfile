@@ -1,44 +1,58 @@
+# Multi-stage Docker build optimized for layer caching
+# Layers ordered from least-likely-to-change to most-likely-to-change
+
 FROM node:20.11-alpine as build
 
+# Layer 1: System dependencies (most stable - changes very rarely)
+RUN apk add --no-cache python3 make g++ sqlite-dev
 RUN corepack enable
-
 WORKDIR /app
 
-COPY ./package.json ./
-RUN corepack prepare --activate
+# Layer 2: Workspace configuration (very stable)
+COPY ./pnpm-workspace.yaml ./
+# Copy .npmrc if it exists
+COPY .npmrc* ./
 
-# Move files into the image and install
-COPY ./*.* ./
-# NOTE notes's transitive dependencies go here: if that changes, this needs to be updated.
+# Layer 3: Package manifests only (moderately stable - changes when adding/updating deps)
+COPY ./package.json ./pnpm-lock.yaml ./
+COPY ./packages/notes/package.json ./packages/notes/package.json
+COPY ./services/notes/package.json ./services/notes/package.json
+
+# Layer 4: Prepare package manager (depends on package.json)
+RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+
+# Layer 5: Install dependencies (expensive operation - cache when possible)
+RUN pnpm install --frozen-lockfile
+
+# Layer 6: TypeScript configuration (rarely changes)
 COPY ./tsconfig ./tsconfig
-COPY ./packages/notes ./packages/notes
-COPY ./packages/api ./packages/api
-COPY ./packages/common ./packages/common
-COPY ./packages/common-web ./packages/common-web
-COPY ./packages/lexicon ./packages/lexicon
-COPY ./packages/syntax ./packages/syntax
-COPY ./packages/xrpc-server ./packages/xrpc-server
+COPY ./packages/notes/tsconfig*.json ./packages/notes/
+
+# Layer 7: Source code (changes frequently - comes LAST for optimal caching)
+COPY ./packages/notes/src ./packages/notes/src
 COPY ./services/notes ./services/notes
 
-# install all deps
-RUN pnpm install --frozen-lockfile > /dev/null
-# build all packages with external node_modules
-RUN pnpm build > /dev/null
-# clean up
+# Layer 8: Build application (only runs when source code or config changes)
+RUN pnpm build
+
+# Layer 9: Production dependencies setup (only when package.json changes)
 RUN rm -rf node_modules
-# install only prod deps, hoisted to root node_modules dir
-RUN pnpm install --prod --shamefully-hoist --frozen-lockfile --prefer-offline > /dev/null
+RUN pnpm install --prod --shamefully-hoist --frozen-lockfile --prefer-offline
+
+# Layer 9b: Approve and rebuild better-sqlite3 for production
+#RUN echo "better-sqlite3" | pnpm approve-builds --stdin || true
+#RUN pnpm rebuild better-sqlite3
 
 WORKDIR services/notes
 
-# Uses assets from build stage to reduce build size
+# Runtime stage - optimized for minimal size
 FROM node:20.11-alpine
 
-RUN apk add --update dumb-init curl ca-certificates fuse3
+# Runtime dependencies (including FUSE for LiteFS)
+RUN apk add --no-cache dumb-init curl ca-certificates fuse3 sqlite
 
-# Install LiteFS
-RUN curl -L https://github.com/superfly/litefs/releases/latest/download/litefs-linux-amd64.tar.gz | tar xz -C /tmp
-RUN mv /tmp/litefs /usr/local/bin/
+# Install LiteFS using the official Fly.io method
+COPY --from=flyio/litefs:0.5 /usr/local/bin/litefs /usr/local/bin/litefs
 
 # Create directories for LiteFS
 RUN mkdir -p /var/lib/litefs /litefs
@@ -48,15 +62,14 @@ ENTRYPOINT ["dumb-init", "--"]
 
 WORKDIR /app/services/notes
 COPY --from=build /app /app
-COPY litefs.yml /app/services/notes/
 
-EXPOSE 8081
-ENV PORT=8081
+EXPOSE 8080 8081
+ENV PORT=8080
+ENV INTERNAL_API_PORT=8081
 ENV NODE_ENV=production
 
-# LiteFS mounts database, Node.js app handles HTTP directly
-# No proxy needed - LiteFS just provides shared database access
-CMD ["litefs", "mount", "-config", "litefs.yml", "-exec", "node --heapsnapshot-signal=SIGUSR2 --enable-source-maps index.js"]
+# LiteFS mounts database and executes Node.js app (configured in litefs.yml)
+CMD ["litefs", "mount", "-config", "litefs.yml"]
 
 LABEL org.opencontainers.image.source=https://github.com/johnwarden/atproto-community-notes
 LABEL org.opencontainers.image.description="Community Notes Service"

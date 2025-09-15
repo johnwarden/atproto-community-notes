@@ -1,0 +1,62 @@
+# ============================================================================
+# Docker Build Context Optimization
+# ============================================================================
+# Build context: project root
+# Dockerfile: services/notes/Dockerfile
+
+# CRITICAL: Exclude the massive node_modules directories
+node_modules/
+packages/notes/node_modules/
+services/notes/node_modules/
+**/node_modules/
+
+# Exclude built artifacts (will be rebuilt)
+packages/notes/dist/
+**/dist/
+
+# Exclude development files
+.git/
+.DS_Store
+*.log
+test.log
+*.db
+*.sqlite
+*.sqlite3
+.env*
+.envrc
+devbox.lock
+
+# Exclude documentation
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
+design/
+
+# Exclude test files
+packages/notes/tests/
+**/tests/
+*.test.*
+coverage/
+
+# Exclude backup files
+**/*.backup
+**/*.original
+**/Dockerfile.*
+
+# Keep essential files (explicit includes)
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!.npmrc
+!tsconfig/
+!tsconfig/*.json
+!packages/notes/src/
+!packages/notes/package.json
+!packages/notes/tsconfig*.json
+!services/notes/Dockerfile
+!services/notes/index.js
+!services/notes/litefs.yml
+!services/notes/package.json
+!services/notes/fly.toml

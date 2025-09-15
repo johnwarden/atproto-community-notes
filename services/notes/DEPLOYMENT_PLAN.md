@@ -167,9 +167,7 @@ services/scoring/               # Future: Scoring service
 ### Phase 6: Configuration Cleanup 🔄 IN PROGRESS
 - [ ] Update `env.example` to match config.ts
 - [ ] Update `justfile` environment variables
-- [ ] Remove LiteFS references from all files
 - [ ] Update `fly.toml` configuration
-- [ ] Update `Dockerfile` to remove LiteFS
 
 ### Phase 7: Production Hardening (Future)
 - [ ] Document manual DID creation process
@@ -180,9 +178,9 @@ services/scoring/               # Future: Scoring service
 ## Database Configuration
 
 ### LiteFS Shared Database
+
 The Notes Service uses LiteFS for shared database access:
 
-- **Database Path**: `/litefs/notes.db` (LiteFS FUSE mount)
 - **Access Pattern**: LiteFS replication for multi-service access
 - **Concurrency**: WAL mode with LiteFS coordination
 - **Migrations**: Automatic migration on startup
@@ -290,15 +288,7 @@ ENV NODE_ENV=production
 CMD ["node", "--heapsnapshot-signal=SIGUSR2", "--enable-source-maps", "index.js"]
 ```
 
-### Justfile Commands (Revised)
-
-**Key Changes**:
-- No `--app` flags needed (app name in fly.toml)
-- Reads non-secret variables from .env
-- All secrets set via `fly secrets set`
-- **Port configuration**: PORT and INTERNAL_API_PORT set in fly.toml [env] to stay in sync with internal_port
-- **Most env vars passed via deploy**: Except ports which are hardcoded in fly.toml
-- **Internal API**: Uses IPv6 binding for secure internal service communication
+### Justfile Commands
 
 #### Setup Commands
 - `just fly-setup`: Complete setup (app creation, secrets, volume, deploy)
@@ -412,7 +402,7 @@ fly volumes create litefs --region sjc --size 10
 
 ```bash
 # Check Notes service
-curl https://notes.fly.dev/health
+curl https://atproto-notes-api.fly.dev/health
 
 # Check Algorithm service
 curl https://notes-algorithm.fly.dev/health

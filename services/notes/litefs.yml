@@ -1,5 +1,6 @@
 # LiteFS configuration for Community Notes Service
-# This enables shared SQLite database access across multiple machines
+# Architecture: Single writer (this service) with read-only replicas
+# This service is always the primary writer, other services are read-only
 
 # FUSE mount directory for LiteFS
 fuse:
@@ -12,10 +13,10 @@ data:
 # No proxy - let Node.js app handle HTTP directly
 # LiteFS just provides shared database access
 
-# Lease configuration using Fly.io's Consul
+# Lease configuration - this service is always the primary writer
 lease:
   type: "consul"
-  candidate: ${FLY_REGION == PRIMARY_REGION}
+  candidate: true
   promote: true
 
   consul:
@@ -24,7 +25,6 @@ lease:
 
 # No backup configuration - using LiteFS replication only
 
-# Logging
-log:
-  level: "info"
-
+# Execute the Node.js application after LiteFS is ready
+exec:
+  - cmd: "node --heapsnapshot-signal=SIGUSR2 --enable-source-maps index.js"
