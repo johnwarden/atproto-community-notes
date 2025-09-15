@@ -5,26 +5,27 @@ import {
 import cors from 'cors'
 import express, { json } from 'express'
 import { AtpAgent } from '@atproto/api'
-import { subsystemLogger } from '@atproto/common'
 import createProposal from './api/org/opencommunitynotes/createProposal'
 import getConfig from './api/org/opencommunitynotes/getConfig'
 import getProposals from './api/org/opencommunitynotes/getProposals'
 import rateProposal from './api/org/opencommunitynotes/rateProposal'
 import { AuthService } from './auth'
 import { createRouter as createBasicRouter } from './basic-routes'
-import { type NotesServiceConfig, type RepoAccount } from './config'
+import {
+  type NotesServiceConfig,
+  type RepoAccount,
+  envToCfg,
+  readEnv,
+} from './config'
 import { AppContext } from './context'
 import { Database } from './db'
 import { registerFeedHandlers } from './feeds'
 import { createServer } from './lexicon'
-import { httpLogger as log, loggerMiddleware } from './logger'
+import { appLogger as log, loggerMiddleware, scoringLog } from './logger'
 import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
 import { getOrCreatePdsAgent } from './utils'
 import wellKnown from './well-known'
-
-// Create scoring-specific logger
-const scoringLog = subsystemLogger('scoring')
 
 export interface PendingLabel {
   id: number
@@ -201,20 +202,18 @@ export class NotesService {
     this.internalServer = createHttpServer(internalApp)
 
     // Create feed generator records idempotently (only if not disabled)
-    log.info(`Create feed generator records`)
     await this.createFeedGeneratorRecords()
 
     const port = this.config.port
 
-    this.server.listen(port)
+    this.server.listen(port, () => {
+      log.info({ port }, `HTTP listening`)
+    })
 
     const internalApiPort = this.config.internalApiPort
 
     this.internalServer.listen(internalApiPort, '::', () => {
-      log.info(
-        { internalApiHost: '::', internalApiPort },
-        `Internal HTTP listening on IPv6`,
-      )
+      log.info({ internalApiPort }, `Internal HTTP listening on IPv6`)
     })
 
     return this.server

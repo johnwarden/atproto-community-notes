@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { AuthService } from '../auth'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 
 export interface AuthenticatedRequest extends Request {
   auth?: {

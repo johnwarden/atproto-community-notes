@@ -11,12 +11,12 @@ import {
   HandlerError,
   HandlerSuccess,
 } from '../../../lexicon/types/org/opencommunitynotes/createProposal'
-import { httpLogger as log } from '../../../logger'
+import { appLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import {
-  getOrCreatePdsAgent,
   generateAid,
   generatePseudonymFromAid,
+  getOrCreatePdsAgent,
   normalizeAtUri,
 } from '../../../utils'
 import { resHeaders } from '../../util'

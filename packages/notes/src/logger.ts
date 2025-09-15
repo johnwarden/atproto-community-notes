@@ -3,7 +3,10 @@ import { type Logger, stdSerializers } from 'pino'
 import { pinoHttp } from 'pino-http'
 import { obfuscateHeaders, subsystemLogger } from '@atproto/common'
 
-export const dbLogger: Logger = subsystemLogger('notes:db')
+export const appLogger: Logger = subsystemLogger('notes')
+
+// Create scoring-specific logger
+export const scoringLog = subsystemLogger('scoring')
 
 export function reqSerializer(req: IncomingMessage) {
   const serialized = stdSerializers.req(req)
@@ -11,7 +14,7 @@ export function reqSerializer(req: IncomingMessage) {
   return { ...serialized, headers }
 }
 
-export const httpLogger: Logger = subsystemLogger('notes')
+export const httpLogger: Logger = subsystemLogger('notes:http')
 
 export const loggerMiddleware = pinoHttp({
   logger: httpLogger,

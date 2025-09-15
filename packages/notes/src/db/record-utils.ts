@@ -3,8 +3,8 @@ import { CID } from 'multiformats/cid'
 import { AtUri } from '@atproto/syntax'
 import { enableSyncToPds } from '../config'
 import type { AppContext } from '../context'
-import { httpLogger as log } from '../logger'
-import { getOrCreatePdsAgent, generateVoteRkey } from '../utils'
+import { appLogger as log } from '../logger'
+import { generateVoteRkey, getOrCreatePdsAgent } from '../utils'
 import type { Database } from './index'
 
 /**

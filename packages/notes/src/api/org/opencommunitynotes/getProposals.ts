@@ -2,7 +2,7 @@ import { AuthRequiredError, InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../context'
 import { getHydratedProposals } from '../../../db/proposals'
 import { Server } from '../../../lexicon'
-import { httpLogger as log } from '../../../logger'
+import { appLogger as log } from '../../../logger'
 import { generateAid, normalizeAtUri } from '../../../utils'
 import { resHeaders } from '../../util'
 

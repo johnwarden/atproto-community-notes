@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import { InvalidRequestError, XRPCError } from '@atproto/xrpc-server'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 
 /**
  * Centralized error handling middleware for Express routes

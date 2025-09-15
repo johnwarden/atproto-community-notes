@@ -1,6 +1,6 @@
 import express from 'express'
 import { AppContext } from '../context'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 import { asyncHandler } from '../middleware/error-handling'
 import {
   getNeedsYourHelpFeed,

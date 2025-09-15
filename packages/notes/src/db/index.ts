@@ -1,6 +1,6 @@
 import BetterSqlite3 from 'better-sqlite3'
 import { Kysely, Migrator, SqliteDialect } from 'kysely'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 import { DatabaseSchema, DatabaseSchemaType } from './database-schema'
 import * as migrations from './migrations'
 import { CtxMigrationProvider } from './migrations/provider'

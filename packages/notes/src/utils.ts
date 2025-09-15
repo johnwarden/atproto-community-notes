@@ -7,7 +7,7 @@ import { lexToIpld } from '@atproto/lexicon'
 import { AtUri } from '@atproto/syntax'
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from './context'
-import { httpLogger as log } from './logger'
+import { appLogger as log } from './logger'
 
 /**
  * Generate a rainbow-table resistant Anonymous ID (AID) from a DID using SHA256

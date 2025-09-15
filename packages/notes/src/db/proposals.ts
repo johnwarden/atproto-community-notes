@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import { AppContext } from '../context'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 import { generatePseudonymFromAid } from '../utils'
 import { ProposalView } from '../views/types'
 

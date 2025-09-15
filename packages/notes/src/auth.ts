@@ -1,4 +1,4 @@
-import { httpLogger as log } from './logger'
+import { appLogger as log } from './logger'
 
 export interface AuthResult {
   success: boolean

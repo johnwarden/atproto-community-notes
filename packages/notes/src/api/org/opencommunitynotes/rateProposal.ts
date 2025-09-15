@@ -10,7 +10,7 @@ import {
   HandlerError,
   HandlerSuccess,
 } from '../../../lexicon/types/org/opencommunitynotes/rateProposal'
-import { httpLogger as log } from '../../../logger'
+import { appLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import { generateAid, generateVoteRkey } from '../../../utils'
 

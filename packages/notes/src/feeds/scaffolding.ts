@@ -1,5 +1,5 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
-import { httpLogger as log } from '../logger'
+import { appLogger as log } from '../logger'
 import { FeedSkeleton } from './types'
 
 /**

@@ -1,6 +1,6 @@
 import { AppContext } from '../../../context'
 import { Server } from '../../../lexicon'
-import { httpLogger as log } from '../../../logger'
+import { appLogger as log } from '../../../logger'
 
 export default function (server: Server, ctx: AppContext) {
   server.org.opencommunitynotes.getConfig({
