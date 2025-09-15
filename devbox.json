@@ -10,15 +10,15 @@
     "clang", // a GCC/Clang that supports C++20
     "llvm",
     "cloc@latest",
-    "pnpm@latest",
+    "pnpm@10.14.0",
     "corepack_24",
     "python311@latest",
     "python311Packages.setuptools@latest",
     "just@latest",
     "process-compose@latest",
-    "flyctl@latest"
+    "flyctl@latest",
   ],
   "shell": {
-    "init_hook": ["pnpm install --frozen-lockfile"]
-  }
+    "init_hook": ["pnpm install --frozen-lockfile"],
+  },
 }
