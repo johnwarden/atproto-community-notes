@@ -400,7 +400,8 @@ export function getAutoDetectedSchemaName(): string {
 
 export async function createTestNetwork(): Promise<TestNetworkWrapper> {
   // Use a single shared schema for all tests to reduce startup overhead
-  const schemaName = 'test_shared'
+  // const schemaName = 'test_shared'
+  const schemaName = getAutoDetectedSchemaName()
 
   // Create TestNetworkWrapper with clean schemas and notes/labeler services
   try {
