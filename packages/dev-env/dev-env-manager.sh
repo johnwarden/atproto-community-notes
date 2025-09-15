@@ -12,7 +12,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly COMPOSE_FILE="${SCRIPT_DIR}/process-compose.yaml"
 readonly STARTUP_TIMEOUT=300
-readonly ENV_FILE="${SCRIPT_DIR}/../../.env"
+readonly ENV_FILE="${SCRIPT_DIR}/../../dev.env"
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -25,16 +25,16 @@ readonly NC='\033[0m' # No Color
 # Utility Functions
 # =============================================================================
 
-# Load environment variables from .env file
+# Load environment variables from dev.env file
 load_env_file() {
     if [[ -f "$ENV_FILE" ]]; then
         log_info "Loading environment variables from .env"
-        # Export variables from .env file, ignoring comments and empty lines
+        # Export variables from dev.env file, ignoring comments and empty lines
         set -a  # automatically export all variables
         source "$ENV_FILE"
         set +a  # stop automatically exporting
     else
-        log_warning ".env file not found at $ENV_FILE"
+        log_warning "dev.env file not found at $ENV_FILE"
     fi
 }
 

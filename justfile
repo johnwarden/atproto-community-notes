@@ -5,6 +5,8 @@ help:
 
 set dotenv-load := true
 
+
+set dotenv-filename := "dev.env" 
 import "notes.just"
 import "dev-env.just"
 
@@ -99,10 +101,6 @@ test-logs FILTER="" LINES="50":
         echo "📋 Showing recent {{LINES}} logs"
         tail -{{LINES}} test.log | pnpm exec pino-pretty
     fi
-
-
-
-
 
 introspect:
     curl --get http://localhost:2581 | jq
