@@ -1,28 +1,45 @@
 # Community Notes Service Management Commands
 # Usage: just <command>
 
-set dotenv-load := true
+
+import "production-vars.just"
+
+set dotenv-load := false
+
+help:
+    @just --list --unsorted
 
 # Default recipe - show available commands
 default:
     @just --list
 
+
+
+PORT := "8080"
+INTERNAL_API_PORT := "8081"
+
 # Set up internal endpoint for local development
-export INTERNAL_ENDPOINT := if env_var_or_default("FLY_PRIVATE_IPV6", "") != "" { "http://[" + env_var("FLY_PRIVATE_IPV6") + "]:8081" } else { "http://localhost:8081" }
+INTERNAL_ENDPOINT := "http://atproto-notes-api.internal:8081"
+
+HOSTNAME := "api.c10t.es"
 
 # Check environment variables (non-sensitive only)
-env:
+prod-env:
     @echo "🔧 Environment variables status:"
-    @echo "NODE_ENV: ${NODE_ENV:-'not set'}"
-    @echo "PORT: ${PORT:-'not set'}"
-    @echo "INTERNAL_API_PORT: ${INTERNAL_API_PORT:-'not set'}"
-    @echo "INTERNAL_ENDPOINT: {{INTERNAL_ENDPOINT}}"
-    @echo "PDS_URL: ${PDS_URL:-'not set'}"
-    @echo "DB_PATH: ${DB_PATH:-'not set'}"
-    @echo "REPO_DID: ${REPO_DID:-'not set'}"
-    @echo "FEEDGEN_DOCUMENT_DID: ${FEEDGEN_DOCUMENT_DID:-'not set'}"
-    @echo "LABELER_DID: ${LABELER_DID:-'not set'}"
-    @echo "LABELER_URL: ${LABELER_URL:-'not set'}"
+    @echo "NODE_ENV: {{NODE_ENV}}"
+    @echo "PORT: {{PORT}}"
+    @echo "INTERNAL_API_PORT: {{INTERNAL_API_PORT}}"
+    @echo "PDS_URL: {{PDS_URL}}"
+    @echo "DB_PATH: {{DB_PATH}}"
+    @echo "REPO_DID: {{REPO_DID}}"
+    @echo "FEEDGEN_DOCUMENT_DID: {{FEEDGEN_DOCUMENT_DID}}"
+    @echo "LABELER_DID: {{LABELER_DID}}"
+    @echo "LABELER_URL: {{LABELER_URL}}"
+    @echo "HOSTNAME: {{HOSTNAME}}"
+    @echo "LOG_ENABLED: {{LOG_ENABLED}}"
+    @echo "LOG_LEVEL: {{LOG_LEVEL}}"
+    @echo "LOG_DESTINATION: {{LOG_DESTINATION}}"
+
 
 
 # One-command health check of everything
@@ -30,15 +47,10 @@ status: health fly-status
 
 # Check service health endpoints
 health:
-    @echo "\n🏥 Checking service health..."
-    @curl -s "https://notes.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
+    @curl -s "https://atproto-notes-api.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
+    @curl -s "{{INTERNAL_ENDPOINT}}/internal/_health" | jq . || echo "❌ Internal API not responding"
 
 # === Internal API Testing ===
-
-# Check internal API health
-internal-health:
-    @echo "🏥 Checking internal API health..."
-    @curl -s "{{INTERNAL_ENDPOINT}}/internal/_health" | jq . || echo "❌ Internal API not responding"
 
 # Test internal /score endpoint with sample data
 test-score-endpoint:
@@ -56,8 +68,6 @@ set-score PROPOSAL_URI STATUS SCORE:
         -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}' \
         | jq .
 
-# Complete internal API status check
-internal-status: internal-health test-score-endpoint
 
 
 # === LiteFS Setup ===
@@ -66,70 +76,74 @@ internal-status: internal-health test-score-endpoint
 setup-litefs-volume:
     @echo "💾 Setting up LiteFS volume for Notes service..."
     @echo "📊 Creating 10GB volume in sjc region..."
-    fly volumes create litefs --region sjc --size 10
+    cd ../.. && fly volumes create litefs --region sjc --size 1 
     @echo "✅ LiteFS volume created successfully!"
     @echo "💡 Volume will be mounted at /litefs in the container"
 
 # Check LiteFS status
 litefs-status:
     @echo "🔍 Checking LiteFS status..."
-    fly ssh console --command "litefs status"
+    cd ../.. && fly ssh console --command "litefs status"
 
 # Check database status
 db-status:
     @echo "🔍 Checking database status..."
-    fly ssh console --command "ls -la /litefs/ && sqlite3 /litefs/notes.db 'SELECT COUNT(*) FROM sqlite_master;'"
+    cd ../.. && fly ssh console --command "ls -la /litefs/ && sqlite3 /litefs/notes.db 'SELECT COUNT(*) FROM sqlite_master;'"
+
 
 # === Deployment & Management ===
 
 # Set up SSL certificate
 setup-cert:
-    fly certs add notes.fly.dev
+    cd ../.. && fly certs add {{HOSTNAME}}
 
 # Set secrets interactively (SECRETS ONLY - never saved to files)
 setup-secrets:
     #!/bin/zsh
     source ./secrets.sh
-    fly secrets set AID_SALT="$AID_SALT"
-    fly secrets set REPO_PASSWORD="$REPO_PASSWORD"
+    cd ../.. && fly secrets set AID_SALT="$AID_SALT"
+    cd ../.. && fly secrets set REPO_PASSWORD="$REPO_PASSWORD"
     echo "✅ All secrets configured securely for Notes service!"
 
-# Deploy Notes service to Fly.io
+# Deploy Notes service to Fly.io (from project root)
 deploy:
-    @echo "🚀 Deploying Notes service..."
-    fly deploy \
-        --env NODE_ENV=${NODE_ENV} \
-        --env LOG_ENABLED=true \
-        --env LOG_LEVEL=${LOG_LEVEL} \
-        --env LOG_DESTINATION=${LOG_DESTINATION} \
-        --env PDS_URL=${PDS_URL} \
-        --env LABELER_URL=${LABELER_URL} \
-        --env DB_PATH=${DB_PATH} \
-        --env REPO_DID=${REPO_DID} \
-        --env FEEDGEN_DOCUMENT_DID=${FEEDGEN_DOCUMENT_DID} \
-        --env LABELER_DID=${LABELER_DID}
+    @echo "🚀 Deploying Notes service from project root..."
+    cd ../.. && LOG_LEVEL=info fly deploy \
+        --config fly.toml \
+        --env NODE_ENV={{NODE_ENV}} \
+        --env LOG_ENABLED={{LOG_ENABLED}} \
+        --env LOG_LEVEL={{LOG_LEVEL}} \
+        --env LOG_DESTINATION="{{LOG_DESTINATION}}" \
+        --env PDS_URL="{{PDS_URL}}" \
+        --env LABELER_URL={{LABELER_URL}} \
+        --env DB_PATH={{DB_PATH}} \
+        --env REPO_DID={{REPO_DID}} \
+        --env FEEDGEN_DOCUMENT_DID={{FEEDGEN_DOCUMENT_DID}} \
+        --env LABELER_DID={{LABELER_DID}}
 
-# Deploy with custom environment variables (for advanced usage)
-deploy-env *ARGS:
-    @echo "🚀 Deploying Notes service with custom environment..."
-    fly deploy {{ARGS}}
+# Build Docker image (from project root for optimal caching)
+docker-build:
+    @echo "🐳 Building Docker image from project root..."
+    cd ../.. && docker build -f services/notes/Dockerfile --progress=plain -t community-notes-service .
 
 # Complete Fly.io deployment setup for Notes service
 fly-setup:
     @echo "🚀 Complete Fly.io deployment setup for Notes service..."
-    @echo "1️⃣ Creating Fly.io app..."
-    fly apps create notes
-    @echo "2️⃣ Setting secrets from environment..."
-    just setup-secrets
-    @echo "3️⃣ Creating LiteFS volume..."
-    just setup-litefs-volume
-    @echo "4️⃣ Deploying application..."
-    just deploy
+    @echo "Creating Fly.io app..."
+    cd ../.. && fly apps create notes
+    @echo "Setting secrets from environment..."
+    cd ../.. && just setup-secrets
+    @echo "Creating LiteFS volume..."
+    cd ../.. && just setup-litefs-volume
+    @echo "SEtting up certs..."
+    cd ../.. && just setup-certs
+    @echo "Deploying application..."
+    cd ../.. && just notes-deploy
     @echo "✅ Notes service deployment complete!"
-    @echo "🔗 Your Community Notes service is available at: https://notes.fly.dev"
+    @echo "🔗 Your Community Notes service is available at: https://atproto-notes-api.fly.dev"
 
 # Restart the Fly.io application
-restart:
+restart-app:
     fly app restart
 
 # Check Fly.io app status
@@ -141,9 +155,38 @@ fly-dashboard:
     fly dashboard
 
 
-# Show recent application logs
-logs:
-    fly logs
+# Show recent live application logs
+app-logs:
+    cd ../.. && LOG_LEVEL=info fly logs -j \
+    | jq --unbuffered -c -r 'select(.meta.Event.Provider=="app") \
+        | .message \
+        | (fromjson? // empty) \
+        | select(.name=="notes")' \
+    | node_modules/.bin/pino-pretty --colorize --translateTime 'SYS:yyyy-mm-dd HH:MM:ss.l'
+
+
+# Show recent live HTTP logs
+http-logs:
+    cd ../.. && LOG_LEVEL=info fly logs -j \
+    | jq --unbuffered -c -r 'select(.meta.Event.Provider=="app") \
+        | .message \
+        | (fromjson? // empty) \
+        | select(.name=="notes:http")' \
+    | node_modules/.bin/pino-pretty --colorize --translateTime 'SYS:yyyy-mm-dd HH:MM:ss.l'
+
+# Show recent live fly.io logs
+fly-logs:
+    LOG_LEVEL=info cd ../.. && fly logs | awk '!/\{.*\}$/'   # drop lines that end with a JSON object
+
+logs-tmux:
+    tmux new-session \; \
+      send-keys "just fly-logs" C-m \; \
+      split-window -v \; \
+      send-keys "just app-logs" C-m \; \
+      select-pane -t 0 \; \
+      split-window -h \; \
+      send-keys "just http-logs" C-m \; \
+      select-layout tiled
 
 
 # === Database Management ===
@@ -151,24 +194,6 @@ logs:
 # Connect to production notes database via SSH
 db-connect:
     @echo "🗄️ Connecting to production notes database..."
-    fly ssh console --command "sqlite3 ${DB_PATH}"
+    cd ../.. && fly ssh console --command "sqlite3 {{DB_PATH}}"
 
-# Show recent score events
-db-score-events:
-    @echo "🗄️ Recent score events..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM scoreEvent ORDER BY createdAt DESC LIMIT 10;'"
 
-# Show pending labels
-db-pending-labels:
-    @echo "🗄️ Pending labels..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT * FROM pendingLabels ORDER BY createdAt DESC LIMIT 10;'"
-
-# Show recent proposals
-db-proposals:
-    @echo "🗄️ Recent proposals..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record WHERE collection = \"social.pmsky.proposal\" ORDER BY indexedAt DESC LIMIT 10;'"
-
-# Show recent ratings
-db-ratings:
-    @echo "🗄️ Recent ratings..."
-    fly ssh console --command "sqlite3 ${DB_PATH} 'SELECT uri, indexedAt FROM record WHERE collection = \"social.pmsky.rating\" ORDER BY indexedAt DESC LIMIT 10;'"

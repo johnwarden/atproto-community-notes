@@ -3,14 +3,20 @@
 help:
     @just --list --unsorted
 
-set dotenv-load := true
+# Default recipe - show available commands
+default:
+    @just --list
+
+    
+set shell := ["zsh", "-o", "pipefail", "-c"]
 
 
 set dotenv-filename := "dev.env" 
 import "notes.just"
 import "dev-env.just"
 
-# codegen
+
+# Codegen
 codegen PACKAGE="":
     #!/usr/bin/env bash
     if [ -n "{{PACKAGE}}" ]; then
