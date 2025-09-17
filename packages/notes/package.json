@@ -35,6 +35,7 @@
   "dependencies": {
     "@atproto/api": "0.16.0",
     "@atproto/common": "^0.4.0",
+    "@atproto/identity": "^0.4.9",
     "@atproto/lexicon": "^0.4.0",
     "@atproto/syntax": "^0.3.0",
     "@atproto/xrpc-server": "^0.9.4",

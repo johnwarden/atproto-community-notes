@@ -1,4 +1,5 @@
 import { appLogger as log } from './logger'
+import { IdResolver } from '@atproto/identity'
 
 export interface AuthResult {
   success: boolean
@@ -7,11 +8,12 @@ export interface AuthResult {
 }
 
 interface AtProtoJwtPayload {
-  iss?: string // Issuer (PDS URL)
+  iss?: string // Issuer (PDS URL) - present in dev-env tokens
   sub?: string // Subject (user DID)
-  aud?: string // Audience
+  aud?: string // Audience (may contain service DID in production)
   exp?: number // Expiration time
   iat?: number // Issued at time
+  scope?: string // Token scope (e.g., "com.atproto.access")
 }
 
 /**
@@ -49,10 +51,15 @@ function unsafeDecodeJwt(token: string): AtProtoJwtPayload {
 
 export class AuthService {
   private pdsUrl: string
+  private idResolver: IdResolver
 
   constructor(pdsUrl?: string) {
     // Use provided PDS URL or default to localhost:2583 for dev-env compatibility
     this.pdsUrl = pdsUrl || 'http://localhost:2583'
+    
+    // Configure IdResolver with production PLC URL since DID resolution
+    // only happens for production tokens (dev tokens have iss field)
+    this.idResolver = new IdResolver({ plcUrl: 'https://plc.directory' })
   }
 
   /**
@@ -70,23 +77,67 @@ export class AuthService {
     const token = authHeader.slice(7) // Remove 'Bearer ' prefix
 
     try {
-      // Extract the PDS URL from the JWT token's issuer (iss) claim
-      const pdsUrl = await this.extractPdsFromToken(token)
-
-      if (!pdsUrl) {
+      // Extract the user's DID from the token and resolve their PDS URL
+      const payload = unsafeDecodeJwt(token)
+      const userDid = payload.sub
+      
+      if (!userDid || typeof userDid !== 'string' || !userDid.startsWith('did:')) {
         return {
           success: false,
-          error: 'Could not determine PDS URL from token',
+          error: 'Invalid or missing user DID in token',
         }
       }
 
-      // Call the PDS getSession endpoint to verify the token
+      // For now, use a simple approach: extract PDS URL from token or resolve from DID
+      let pdsUrl: string | null = null
+      
+      // Strategy 1: Check if token has issuer claim (dev-env style)
+      if (payload.iss && typeof payload.iss === 'string') {
+        try {
+          new URL(payload.iss)
+          pdsUrl = payload.iss
+          log.debug({ pdsUrl, userDid, strategy: 'iss_claim' }, 'Using PDS URL from token issuer')
+        } catch {
+          // Invalid URL in iss claim, will try other methods
+          log.warn({ iss: payload.iss, userDid }, 'Invalid URL in iss claim, trying fallback')
+        }
+      } else {
+        log.warn({ tokenPayload: payload }, 'DEV: No iss claim found in token - this should not happen in dev environment')
+      }
+      
+      // Strategy 2: For tokens without issuer, determine PDS based on environment
+      if (!pdsUrl) {
+        // Check if we're in dev environment
+        const isDevEnvironment = this.pdsUrl.includes('localhost') || 
+                                 this.pdsUrl.includes('127.0.0.1') ||
+                                 process.env.NODE_ENV === 'development'
+        
+        if (isDevEnvironment) {
+          // In dev environment, users are on the same PDS as the service
+          pdsUrl = this.pdsUrl
+          log.debug({ pdsUrl, userDid, strategy: 'dev_same_pds' }, 'Using service PDS for dev environment user')
+        } else {
+          // In production, resolve the user's DID to find their PDS
+          const resolvedPdsUrl = await this.resolvePdsFromDid(userDid)
+          if (resolvedPdsUrl) {
+            pdsUrl = resolvedPdsUrl
+            log.debug({ pdsUrl, userDid, strategy: 'did_resolution' }, 'Resolved PDS URL from user DID')
+          } else {
+            return {
+              success: false,
+              error: `Cannot resolve PDS URL for user DID: ${userDid}`,
+            }
+          }
+        }
+      }
+
+      // Call the user's PDS getSession endpoint to verify the token
       const sessionResponse = await this.callPdsGetSession(pdsUrl, token)
 
       if (sessionResponse.success && sessionResponse.did) {
         log.debug(
-          { did: sessionResponse.did, pdsUrl },
-          'Successfully verified token with PDS',
+          { did: sessionResponse.did, pdsUrl, userDid },
+          'Successfully verified token with user PDS',
         )
 
         return {
@@ -117,52 +168,46 @@ export class AuthService {
   }
 
   /**
-   * Extract PDS URL from JWT token by decoding the issuer (iss) claim.
-   * Falls back to configured PDS URL if extraction fails.
+   * Resolve PDS URL from a user's DID using AT Protocol IdResolver
    */
-  private async extractPdsFromToken(token: string): Promise<string | null> {
+  private async resolvePdsFromDid(did: string): Promise<string | null> {
     try {
-      // Decode the JWT token to access its claims
-      const payload = unsafeDecodeJwt(token)
-
-      // Extract the issuer (iss) claim which should contain the PDS URL
-      const pdsUrl = payload.iss
-
-      if (!pdsUrl || typeof pdsUrl !== 'string') {
-        log.warn(
-          { tokenPayload: payload },
-          'JWT token missing or invalid issuer claim, falling back to configured PDS URL',
-        )
-        return this.pdsUrl
+      const didDoc = await this.idResolver.did.resolve(did)
+      if (!didDoc) {
+        log.warn({ did }, 'Could not resolve DID document')
+        return null
       }
 
-      // Validate that the issuer looks like a valid URL
-      try {
-        new URL(pdsUrl)
-      } catch (urlError) {
-        log.warn(
-          { pdsUrl, error: urlError },
-          'JWT issuer claim is not a valid URL, falling back to configured PDS URL',
-        )
-        return this.pdsUrl
-      }
-
-      log.debug(
-        { extractedPdsUrl: pdsUrl, configuredPdsUrl: this.pdsUrl },
-        'Successfully extracted PDS URL from JWT token',
+      // Look for the AtprotoPersonalDataServer service in the DID document
+      const services = didDoc.service || []
+      const pdsService = services.find(
+        (service: any) =>
+          service.type === 'AtprotoPersonalDataServer' ||
+          service.id === '#atproto_pds',
       )
 
-      return pdsUrl
+      if (pdsService && pdsService.serviceEndpoint && typeof pdsService.serviceEndpoint === 'string') {
+        const pdsUrl = pdsService.serviceEndpoint
+        log.debug(
+          { did, pdsUrl, service: pdsService },
+          'Resolved PDS URL from DID document',
+        )
+        return pdsUrl
+      } else {
+        log.warn(
+          { did, services: services.map((s: any) => ({ id: s.id, type: s.type })) },
+          'No AtprotoPersonalDataServer service found in DID document',
+        )
+        return null
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error'
       log.warn(
-        { error: errorMessage },
-        'Failed to decode JWT token, falling back to configured PDS URL',
+        { did, error: errorMessage },
+        'Failed to resolve DID document',
       )
-
-      // Fall back to configured PDS URL for backward compatibility
-      return this.pdsUrl
+      return null
     }
   }
 

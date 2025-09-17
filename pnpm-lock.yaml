@@ -57,6 +57,9 @@ importers:
       '@atproto/common':
         specifier: ^0.4.0
         version: 0.4.12
+      '@atproto/identity':
+        specifier: ^0.4.9
+        version: 0.4.9
       '@atproto/lexicon':
         specifier: ^0.4.0
         version: 0.4.14

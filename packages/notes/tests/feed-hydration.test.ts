@@ -164,7 +164,7 @@ describe('Feed Hydration', () => {
     const encodedBskyUri = encodeURIComponent(bskyFeedUri)
 
     // Retry loop for Bsky hydration - Maximum 10 attempts, 2-second delay
-    const maxAttempts = 10
+    const maxAttempts = 5
     let attempt = 1
     let hydrationSuccess = false
     let finalCount = 0
@@ -246,7 +246,7 @@ describe('Feed Hydration', () => {
       }
 
       if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, 2000)) // 2-second delay like shell script
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
       attempt++
     }
