@@ -164,6 +164,15 @@ app-logs:
         | select(.name=="notes")' \
     | node_modules/.bin/pino-pretty --colorize --translateTime 'SYS:yyyy-mm-dd HH:MM:ss.l'
 
+scoring-logs:
+    cd ../.. && LOG_LEVEL=info fly logs -j \
+    | jq --unbuffered -c -r 'select(.meta.Event.Provider=="app") \
+        | .message \
+        | (fromjson? // empty) \
+        | select(.name=="scoring")' \
+    | node_modules/.bin/pino-pretty --colorize --translateTime 'SYS:yyyy-mm-dd HH:MM:ss.l'
+
+
 
 # Show recent live HTTP logs
 http-logs:
@@ -195,5 +204,4 @@ logs-tmux:
 db-connect:
     @echo "🗄️ Connecting to production notes database..."
     cd ../.. && fly ssh console --command "sqlite3 {{DB_PATH}}"
-
 

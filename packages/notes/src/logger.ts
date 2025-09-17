@@ -5,9 +5,6 @@ import { obfuscateHeaders, subsystemLogger } from '@atproto/common'
 
 export const appLogger: Logger = subsystemLogger('notes')
 
-// Create scoring-specific logger
-export const scoringLog = subsystemLogger('scoring')
-
 export function reqSerializer(req: IncomingMessage) {
   const serialized = stdSerializers.req(req)
   const headers = obfuscateHeaders(serialized.headers)

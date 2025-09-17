@@ -21,7 +21,7 @@ import { AppContext } from './context'
 import { Database } from './db'
 import { registerFeedHandlers } from './feeds'
 import { createServer } from './lexicon'
-import { appLogger as log, loggerMiddleware, scoringLog } from './logger'
+import { appLogger as log, loggerMiddleware } from './logger'
 import { createAuthMiddleware } from './middleware/auth'
 import { errorHandlingMiddleware } from './middleware/error-handling'
 import { getOrCreatePdsAgent } from './utils'
@@ -178,7 +178,7 @@ export class NotesService {
         })
       } catch (error) {
         const totalTime = Date.now() - startTime
-        scoringLog.error(
+        log.error(
           {
             error: error instanceof Error ? error.message : error,
             stack: error instanceof Error ? error.stack : undefined,
@@ -346,7 +346,7 @@ export class NotesService {
     const { proposalUri, status, score } = params
     const startTime = Date.now()
 
-    scoringLog.debug(
+    log.debug(
       {
         proposalUri,
         status,
@@ -380,7 +380,7 @@ export class NotesService {
           targetCid = recordData.cid
           labelValue = recordData.val
 
-          scoringLog.debug(
+          log.debug(
             {
               proposalUri,
               targetUri,
@@ -391,7 +391,7 @@ export class NotesService {
             'Proposal data looked up from database',
           )
         } catch (error) {
-          scoringLog.error(
+          log.error(
             {
               proposalUri,
               error: error instanceof Error ? error.message : error,
@@ -422,7 +422,7 @@ export class NotesService {
       await this.db.db.insertInto('scoreEvent').values(scoreEventData).execute()
 
       const dbTime = Date.now() - startTime
-      scoringLog.info(
+      log.info(
         {
           proposalUri,
           targetUri,
@@ -442,7 +442,7 @@ export class NotesService {
       const syncTime = Date.now() - syncStartTime
 
       const totalTime = Date.now() - startTime
-      scoringLog.info(
+      log.info(
         {
           proposalUri,
           targetUri,
@@ -459,7 +459,7 @@ export class NotesService {
       )
     } catch (error) {
       const totalTime = Date.now() - startTime
-      scoringLog.error(
+      log.error(
         {
           proposalUri,
           status,
@@ -485,7 +485,7 @@ export class NotesService {
       return
     }
 
-    scoringLog.debug({ count: pendingLabels.length }, 'Syncing pending labels')
+    log.debug({ count: pendingLabels.length }, 'Syncing pending labels')
 
     for (const pendingLabel of pendingLabels) {
       await this.syncSingleLabel(pendingLabel)
@@ -526,12 +526,12 @@ export class NotesService {
       // Sync to external labeler (simple HTTP GET)
       await this.callExternalLabeler(pendingLabel)
       labelerSuccess = true
-      scoringLog.debug(
+      log.debug(
         { labelId: pendingLabel.id },
         '🏷️  Label synced to external labeler',
       )
     } catch (error) {
-      scoringLog.error(
+      log.error(
         {
           error: error instanceof Error ? error.message : error,
           stack: error instanceof Error ? error.stack : undefined,
@@ -549,7 +549,7 @@ export class NotesService {
         .where('id', '=', pendingLabel.id)
         .execute()
 
-      scoringLog.info(
+      log.info(
         {
           labelId: pendingLabel.id,
           targetUri: pendingLabel.targetUri,
@@ -560,7 +560,7 @@ export class NotesService {
         '✅ Label fully synced and removed from pending',
       )
     } else {
-      scoringLog.warn(
+      log.warn(
         {
           labelId: pendingLabel.id,
           labelerSuccess,
@@ -581,7 +581,7 @@ export class NotesService {
 
     const url = `${labelerUrl}/label?uri=${encodeURIComponent(pendingLabel.targetUri)}&val=${encodeURIComponent(pendingLabel.labelValue)}&neg=${pendingLabel.negative ? 'true' : 'false'}`
     
-    scoringLog.info(
+    log.info(
       {
         url,
         labelId: pendingLabel.id,
@@ -602,7 +602,7 @@ export class NotesService {
 
     const responseData = await response.json()
 
-    scoringLog.info(
+    log.info(
       {
         labelId: pendingLabel.id,
         status: response.status,

@@ -102,7 +102,7 @@ export class AuthService {
           log.warn({ iss: payload.iss, userDid }, 'Invalid URL in iss claim, trying fallback')
         }
       } else {
-        log.warn({ tokenPayload: payload }, 'DEV: No iss claim found in token - this should not happen in dev environment')
+        log.debug({ tokenPayload: payload }, 'No iss claim found in token')
       }
       
       // Strategy 2: For tokens without issuer, determine PDS based on environment
