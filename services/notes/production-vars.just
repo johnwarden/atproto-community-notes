@@ -5,7 +5,7 @@ LOG_ENABLED   := "true"
 LOG_DESTINATION := "/dev/stdout"
 
 PDS_URL       := "https://rhizopogon.us-west.host.bsky.network"
-LABELER_URL   := "https://testlabeler3.internal"
+LABELER_URL   := "http://testlabeler3.internal:8081"
 
 DB_PATH       := "/litefs/community-notes.db"
 

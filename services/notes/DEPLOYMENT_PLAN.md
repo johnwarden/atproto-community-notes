@@ -66,7 +66,7 @@ FEEDGEN_DOCUMENT_DID=did:web:your-domain.com
 LABELER_DID=did:plc:actual-production-labeler-did
 
 # Labeler Service
-LABELER_URL=https://labeler.example.com
+LABELER_URL=http://labeler.internal:8081
 ```
 
 #### Development Environment
@@ -90,7 +90,7 @@ Per `config.ts`, these variables are required:
 - `REPO_PASSWORD` - Repository account password
 - `FEEDGEN_DOCUMENT_DID` - Feed generator document DID
 - `LABELER_DID` - Labeler service DID
-- `LABELER_URL` - Labeler service URL
+- `LABELER_URL` - Labeler service URL (use HTTP for internal Fly.io services, e.g., `http://testlabeler3.internal`)
 
 ### Configuration Validation
 
@@ -105,7 +105,7 @@ The new config system validates required variables in production:
 - `REPO_PASSWORD` - Repository account password
 - `FEEDGEN_DOCUMENT_DID` - Feed generator document DID
 - `LABELER_DID` - Labeler service DID
-- `LABELER_URL` - Labeler service URL
+- `LABELER_URL` - Labeler service URL (use HTTP for internal Fly.io services, e.g., `http://testlabeler3.internal`)
 
 ## File Structure
 
@@ -197,6 +197,8 @@ Key tables for the event-sourced label system:
 - **Internal Service Communication**: Uses IPv6 binding ('::') for internal API
 - **Fly.io Integration**: Services communicate via internal networking on port 8081
 - **Scoring Service**: Will use this to call Notes Service `/score` endpoint on port 8081
+- **Labeler Service**: Notes service calls labeler `/label` endpoint via internal HTTP URLs (e.g., `http://testlabeler3.internal`)
+- **Protocol Note**: Internal Fly.io services use HTTP (not HTTPS) for inter-service communication
 
 ### Fly.io Configuration Details
 
