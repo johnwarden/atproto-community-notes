@@ -41,7 +41,7 @@ export class TestLabeler {
     // Mock GET /label endpoint - creates labels directly in bsky database
     app.get('/label', async (req, res) => {
       try {
-        const { uri, label, neg } = req.query
+        const { uri, val: label, neg } = req.query
 
         if (!uri || !label) {
           return res.status(400).json({

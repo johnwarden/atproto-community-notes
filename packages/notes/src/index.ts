@@ -579,7 +579,8 @@ export class NotesService {
       throw new Error('LABELER_URL not configured')
     }
 
-    const url = `${labelerUrl}/label?uri=${encodeURIComponent(pendingLabel.targetUri)}&label=${encodeURIComponent(pendingLabel.labelValue)}&neg=${pendingLabel.negative ? 'true' : 'false'}`
+    const url = `${labelerUrl}/label?uri=${encodeURIComponent(pendingLabel.targetUri)}&val=${encodeURIComponent(pendingLabel.labelValue)}&neg=${pendingLabel.negative ? 'true' : 'false'}`
+    
     scoringLog.info(
       {
         url,
@@ -591,20 +592,31 @@ export class NotesService {
       'Calling external labeler service',
     )
 
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(
-        `Labeler request failed: ${response.status} ${response.statusText}`,
-      )
-    }
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'atproto-community-notes/1.0',
+      },
+    })
+
+    const responseData = await response.json()
 
     scoringLog.info(
       {
         labelId: pendingLabel.id,
         status: response.status,
+        statusText: response.statusText,
+        responseData,
       },
-      'External labeler call successful',
+      'Labeler response received',
     )
+
+    if (!response.ok) {
+      throw new Error(
+        `Labeler request failed: ${response.status} ${response.statusText}`,
+      )
+    }
   }
 
   async close(): Promise<void> {
