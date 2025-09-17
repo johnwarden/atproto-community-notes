@@ -17,7 +17,7 @@ create-note URI="":
     curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "{
       \"typ\": \"label\",
       \"uri\": \"$TARGET_URI\",
-      \"val\": \"needs-context\",
+      \"val\": \"annotation\",
       \"note\": \"This is my test note\",
       \"reasons\": [\"factual_error\", \"missing_context\"]
     }" "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq

@@ -222,7 +222,7 @@ export class TestNetworkWrapper {
                 body: JSON.stringify({
                   typ: 'label',
                   uri: post.uri,
-                  val: 'needs-context',
+                  val: 'annotation',
                   note: `This post may be misleading. Test note ${i + 1} for Community Notes integration.`,
                   reasons: ['misrepresentation_or_missing_context'],
                 }),
@@ -288,10 +288,10 @@ export class TestNetworkWrapper {
         await new Promise((resolve) => setTimeout(resolve, 1000))
 
         // Simulate algorithm behavior by calling /score directly
-        // All proposals start with needs_more_ratings status and proposed-note:needs-context label
+        // All proposals start with needs_more_ratings status and proposed-annotation label
         // Later, some will be updated to rated_helpful based on algorithm decisions
 
-        // First pass: Set all proposals to needs_more_ratings with proposed-note:needs-context
+        // First pass: Set all proposals to needs_more_ratings with proposed-annotation
         for (let i = 0; i < proposalUris.length; i++) {
           const proposalUri = proposalUris[i]
 

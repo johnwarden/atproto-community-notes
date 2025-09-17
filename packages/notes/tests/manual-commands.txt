@@ -63,7 +63,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
   -d "{
     \"typ\": \"label\",
     \"uri\": \"$REAL_URI\",
-    \"val\": \"needs-context\",
+    \"val\": \"annotation\",
     \"note\": \"This post needs additional context\",
     \"reasons\": [\"factual_error\"]
   }" \
@@ -90,7 +90,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
   -d '{
     "typ": "invalid_type",
     "uri": "invalid-uri",
-    "val": "needs-context",
+    "val": "annotation",
     "note": ""
   }' \
   "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq

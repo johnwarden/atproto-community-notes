@@ -21,7 +21,7 @@ print_test_section "📋 Creating Test Data"
 # Create test post and scored proposal
 TEST_POST_URI=$(create_test_post "$TOKEN" "Test post for accept-labelers header testing")
 
-PROPOSAL_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_URI" "needs-context" "0.85" "rated_helpful" "Test note for accept-labelers header testing")
+PROPOSAL_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_URI" "annotation" "0.85" "rated_helpful" "Test note for accept-labelers header testing")
 
 test_result "Test post and scored proposal created" "$([ -n "$TEST_POST_URI" ] && [ -n "$PROPOSAL_URI" ] && echo true || echo false)" "Post: $TEST_POST_URI, Proposal: $PROPOSAL_URI"
 
@@ -99,8 +99,8 @@ LABEL_VALUES=$(echo "$COMMUNITY_LABELS" | jq -r '.[].val' 2>/dev/null | sort | t
 
 if [ -n "$LABEL_VALUES" ] && [ "$LABEL_VALUES" != " " ]; then
     # Check for expected label values
-    HAS_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "needs-context")' 2>/dev/null || echo false)
-    HAS_PROPOSED_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "proposal:label:needs-context")' 2>/dev/null || echo false)
+    HAS_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "annotation")' 2>/dev/null || echo false)
+    HAS_PROPOSED_NOTE=$(echo "$COMMUNITY_LABELS" | jq 'any(.val == "proposed-annotation")' 2>/dev/null || echo false)
 
     if [ "$HAS_NOTE" = "true" ] || [ "$HAS_PROPOSED_NOTE" = "true" ]; then
         test_result "Post has expected Community Notes labels" "true"
@@ -160,8 +160,8 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     CURRENT_LABELS=$(echo "$LABELS_CHECK_RESPONSE" | jq '.posts[0].labels // []' 2>/dev/null || echo '[]')
     CURRENT_COMMUNITY_LABELS=$(echo "$CURRENT_LABELS" | jq --arg did "$LABELER_DID" '[.[] | select(.src == $did)]' 2>/dev/null || echo '[]')
 
-    # Check if positive label (needs-context) is gone and negative label might be present
-    HAS_POSITIVE_LABEL=$(echo "$CURRENT_COMMUNITY_LABELS" | jq 'any(.val == "needs-context")' 2>/dev/null || echo false)
+    # Check if positive label (annotation) is gone and negative label might be present
+    HAS_POSITIVE_LABEL=$(echo "$CURRENT_COMMUNITY_LABELS" | jq 'any(.val == "annotation")' 2>/dev/null || echo false)
     HAS_NEGATIVE_LABEL=$(echo "$CURRENT_COMMUNITY_LABELS" | jq 'any(.val | startswith("not-"))' 2>/dev/null || echo false)
 
     if [ "$HAS_POSITIVE_LABEL" = "false" ]; then

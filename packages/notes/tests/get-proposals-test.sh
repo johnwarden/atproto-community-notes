@@ -33,7 +33,7 @@ BOB_POST_URI=$(create_test_post "$BOB_TOKEN" "Bob post for comprehensive orderin
 test_result "Bob post created" "$([ -n "$BOB_POST_URI" ] && echo true || echo false)"
 
 # Create proposals using utilities
-ALICE_PROPOSAL_URI=$(create_community_note "$ALICE_TOKEN" "$ALICE_POST_URI" "Alice proposal on her own post - will be auto-rated" "needs-context")
+ALICE_PROPOSAL_URI=$(create_community_note "$ALICE_TOKEN" "$ALICE_POST_URI" "Alice proposal on her own post - will be auto-rated" "annotation")
 test_result "Alice proposal created" "$([ -n "$ALICE_PROPOSAL_URI" ] && echo true || echo false)"
 
 BOB_ON_ALICE_URI=$(create_community_note "$BOB_TOKEN" "$ALICE_POST_URI" "Bob proposal on Alice post - unrated by Alice" "misleading")
@@ -151,19 +151,19 @@ test_result "First proposal has higher score (0.8)" "$([ "$BOB_AFTER_FIRST_SCORE
 # Test 7: Label Filter Testing
 print_test_section "🏷️ Test 7: Label Filter Testing"
 
-# Test basic label filtering - we have "needs-context", "misleading", "harassment" labels
-NEEDS_CONTEXT_COUNT=$(get_proposals_for_subject "$ALICE_TOKEN" "$ALICE_POST_URI" "" "needs-context" | jq '.proposals | length')
+# Test basic label filtering - we have "annotation", "misleading", "harassment" labels
+NEEDS_CONTEXT_COUNT=$(get_proposals_for_subject "$ALICE_TOKEN" "$ALICE_POST_URI" "" "annotation" | jq '.proposals | length')
 MISLEADING_COUNT=$(get_proposals_for_subject "$ALICE_TOKEN" "$ALICE_POST_URI" "" "misleading" | jq '.proposals | length')
 HARASSMENT_COUNT=$(get_proposals_for_subject "$BOB_TOKEN" "$BOB_POST_URI" "" "harassment" | jq '.proposals | length')
 NONEXISTENT_COUNT=$(get_proposals_for_subject "$ALICE_TOKEN" "$ALICE_POST_URI" "" "nonexistent" | jq '.proposals | length')
 
-test_result "Label filter 'needs-context' returns 1 proposal" "$([ "$NEEDS_CONTEXT_COUNT" -eq "1" ] && echo true || echo false)"
+test_result "Label filter 'annotation' returns 1 proposal" "$([ "$NEEDS_CONTEXT_COUNT" -eq "1" ] && echo true || echo false)"
 test_result "Label filter 'misleading' returns 1 proposal" "$([ "$MISLEADING_COUNT" -eq "1" ] && echo true || echo false)"
 test_result "Label filter 'harassment' returns 1 proposal" "$([ "$HARASSMENT_COUNT" -eq "1" ] && echo true || echo false)"
 test_result "Label filter 'nonexistent' returns 0 proposals" "$([ "$NONEXISTENT_COUNT" -eq "0" ] && echo true || echo false)"
 
 # Test that filtering preserves ordering (Bob should see Alice's unrated proposal first when filtering)
-FILTERED_FIRST_URI=$(get_proposals_for_subject "$BOB_TOKEN" "$ALICE_POST_URI" "" "needs-context" | jq -r '.proposals[0].uri')
+FILTERED_FIRST_URI=$(get_proposals_for_subject "$BOB_TOKEN" "$ALICE_POST_URI" "" "annotation" | jq -r '.proposals[0].uri')
 test_result "Label filtering preserves ordering" "$([ "$FILTERED_FIRST_URI" = "$ALICE_PROPOSAL_URI" ] && echo true || echo false)"
 
 echo -e "${GREEN}🎉 Comprehensive proposal ordering and label filtering test completed!${NC}"

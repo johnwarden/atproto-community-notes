@@ -30,7 +30,7 @@ test_result "Test post created" "$([ -n "$TEST_POST_URI" ] && echo true || echo 
 print_test_section "📝 Test 2: Alice Creates First Note"
 
 # Create Alice's note and set it to needs_more_ratings
-ALICE_PROPOSAL_URI=$(create_community_note "$ALICE_TOKEN" "$TEST_POST_URI" "This post needs additional context - first note" "needs-context")
+ALICE_PROPOSAL_URI=$(create_community_note "$ALICE_TOKEN" "$TEST_POST_URI" "This post needs additional context - first note" "annotation")
 ALICE_SCORE_SUCCESS=$(set_proposal_score "$ALICE_PROPOSAL_URI" "needs_more_ratings" "0.0")
 
 test_result "Alice note created and scored" "$([ -n "$ALICE_PROPOSAL_URI" ] && [ "$ALICE_SCORE_SUCCESS" = "true" ] && echo true || echo false)"

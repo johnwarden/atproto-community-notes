@@ -93,7 +93,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('targetCid', 'text') // Optional CID of the target post
     .addColumn('status', 'text', (col) => col.notNull()) // Status: 'needs_more_ratings', 'rated_helpful', 'rated_not_helpful'
     .addColumn('score', 'real', (col) => col.notNull()) // Required numerical score
-    .addColumn('labelValue', 'text', (col) => col.notNull()) // Label value: 'needs-context', 'harassment', etc.
+    .addColumn('labelValue', 'text', (col) => col.notNull()) // Label value: 'annotation', 'harassment', etc.
     .addColumn('scoreEventTime', 'integer', (col) =>
       col.notNull().defaultTo(sql`(unixepoch('subsec')*1000)`),
     )
@@ -226,23 +226,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   // Create pending label creation triggers for external labeler sync
   // These triggers create pending labels that will be processed by NotesService
   try {
-    // Trigger 1: Create proposal:label immediately on proposal creation
+    // Trigger 1: Create proposed-* labels immediately on proposal creation
     await sql`
       CREATE TRIGGER create_proposed_label_on_proposal
       AFTER INSERT ON record
       BEGIN
-        -- Create proposal:label:[labelValue] immediately when proposal is created
+        -- Create proposed-[labelValue] immediately when proposal is created
         INSERT INTO pendingLabels (targetUri, targetCid, labelValue, negative, createdAt)
         SELECT json_extract(NEW.record, '$.uri'),
                json_extract(NEW.record, '$.cid'),
-               'proposal:label:' || json_extract(NEW.record, '$.val'), 
+               'proposed-' || json_extract(NEW.record, '$.val'), 
                0, 
                datetime('now')
         WHERE NEW.collection = 'social.pmsky.proposal';
       END
     `.execute(db)
 
-    // Trigger 2: Create final labels only on status changes (no more proposal:label creation)
+    // Trigger 2: Create final labels
     await sql`
       CREATE TRIGGER create_final_labels_on_score
       AFTER INSERT ON scoreEvent

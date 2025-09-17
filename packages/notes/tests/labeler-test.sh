@@ -27,7 +27,7 @@ TEST_POST_URI=$(create_test_post "$TOKEN" "This is a test post for end-to-end la
 test_result "Test post created" "$([ -n "$TEST_POST_URI" ] && echo true || echo false)"
 
 # Create community note using utility
-PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "This post needs additional context for end-to-end testing" "needs-context" "[\"disputed_claim\"]")
+PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "This post needs additional context for end-to-end testing" "annotation" "[\"disputed_claim\"]")
 test_result "Community note created" "$([ -n "$PROPOSAL_URI" ] && echo true || echo false)"
 
 # Test 2: Mock algorithm with "rated_helpful" score via API
@@ -53,7 +53,7 @@ print_test_section "🧮 Test 6: Mock Algorithm - Rated Not Helpful Flow"
 
 # Create another test post and proposal for negative label testing
 TEST_POST_URI_2=$(create_test_post "$TOKEN" "Second test post for negative label testing")
-PROPOSAL_URI_2=$(create_community_note "$TOKEN" "$TEST_POST_URI_2" "Second test note for negative label testing" "needs-context" "[\"disputed_claim\"]")
+PROPOSAL_URI_2=$(create_community_note "$TOKEN" "$TEST_POST_URI_2" "Second test note for negative label testing" "annotation" "[\"disputed_claim\"]")
 
 test_result "Second test post and proposal created" "$([ -n "$TEST_POST_URI_2" ] && [ -n "$PROPOSAL_URI_2" ] && echo true || echo false)" "Post: $TEST_POST_URI_2, Proposal: $PROPOSAL_URI_2"
 

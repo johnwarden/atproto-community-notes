@@ -37,7 +37,7 @@ print_test_section "📝 Test 2: Note Creation"
 TEST_POST_URI=$(create_test_post "$TOKEN" "Test post for note creation $(date +%s)")
 
 if [ -n "$TEST_POST_URI" ] && [ "$TEST_POST_URI" != "null" ]; then
-    REAL_PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "Test note creation" "needs-context" "[\"factual_error\"]")
+    REAL_PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "Test note creation" "annotation" "[\"factual_error\"]")
 
     if [ -n "$REAL_PROPOSAL_URI" ] && [ "$REAL_PROPOSAL_URI" != "null" ]; then
         test_result "Note created successfully" "true"
@@ -64,7 +64,7 @@ if [ -n "$TEST_POST_URI" ] && [ "$TEST_POST_URI" != "null" ]; then
         DUPLICATE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $TOKEN" \
-          -d "{\"typ\": \"label\", \"uri\": \"$TEST_POST_URI\", \"val\": \"needs-context\", \"note\": \"Duplicate note attempt\", \"reasons\": [\"disputed_claim\"]}")
+          -d "{\"typ\": \"label\", \"uri\": \"$TEST_POST_URI\", \"val\": \"annotation\", \"note\": \"Duplicate note attempt\", \"reasons\": [\"disputed_claim\"]}")
         DUPLICATE_ERROR=$(echo "$DUPLICATE_RESPONSE" | jq -r '.error')
         test_result "Duplicate prevention working" "$([ "$DUPLICATE_ERROR" = "DuplicateProposal" ] && echo true || echo false)" "Response: $DUPLICATE_RESPONSE"
 
@@ -153,7 +153,7 @@ INVALID_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynot
   -d '{
     "typ": "invalid_type",
     "uri": "at://fake.uri/invalid",
-    "val": "needs-context",
+    "val": "annotation",
     "note": ""
   }')
 
@@ -162,7 +162,7 @@ test_result "Input validation working" "$([ "$INVALID_ERROR" = "InvalidTarget" ]
 
 # Test 6: Non-AT Protocol URI support
 print_test_section "🌐 Test 6: HTTP URI Support"
-HTTP_NOTE_URI=$(create_community_note "$TOKEN" "https://example.com/test-$(date +%s)" "Test HTTP URI support" "needs-context" "[\"factual_error\"]")
+HTTP_NOTE_URI=$(create_community_note "$TOKEN" "https://example.com/test-$(date +%s)" "Test HTTP URI support" "annotation" "[\"factual_error\"]")
 test_result "HTTP URI supported" "$([ -n "$HTTP_NOTE_URI" ] && [ "$HTTP_NOTE_URI" != "null" ] && echo true || echo false)"
 
 
@@ -177,7 +177,7 @@ STATUS_TEST_POST_URI=$(create_test_post "$TOKEN" "Status filtering test post $(d
 
 if [ -n "$STATUS_TEST_POST_URI" ] && [ "$STATUS_TEST_POST_URI" != "null" ]; then
     # Create a proposal for status testing (without rating it)
-    STATUS_CREATE_URI=$(create_community_note "$TOKEN" "$STATUS_TEST_POST_URI" "Status filtering test note" "needs-context" "[\"factual_error\"]")
+    STATUS_CREATE_URI=$(create_community_note "$TOKEN" "$STATUS_TEST_POST_URI" "Status filtering test note" "annotation" "[\"factual_error\"]")
 
     if [ -n "$STATUS_CREATE_URI" ] && [ "$STATUS_CREATE_URI" != "null" ]; then
         # Wait for proposal initialization

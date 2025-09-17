@@ -63,7 +63,7 @@ describe('Notes API', () => {
       users.alice,
       testPostUri,
       'Test note creation',
-      'needs-context',
+      'annotation',
       ['factual_error'],
     )
     realProposalUri = uri
@@ -114,7 +114,7 @@ describe('Notes API', () => {
         body: JSON.stringify({
           typ: 'label',
           uri: testPostUri,
-          val: 'needs-context',
+          val: 'annotation',
           note: 'Duplicate note attempt',
           reasons: ['disputed_claim'],
         }),
@@ -308,7 +308,7 @@ describe('Notes API', () => {
         body: JSON.stringify({
           typ: 'invalid_type',
           uri: 'at://fake.uri/invalid',
-          val: 'needs-context',
+          val: 'annotation',
           note: '',
         }),
       },
@@ -337,7 +337,7 @@ describe('Notes API', () => {
         body: JSON.stringify({
           typ: 'label',
           uri: httpUri,
-          val: 'needs-context',
+          val: 'annotation',
           note: 'Test HTTP URI support',
           reasons: ['factual_error'],
         }),
@@ -394,7 +394,7 @@ describe('Notes API', () => {
         body: JSON.stringify({
           typ: 'label',
           uri: statusTestPostUri,
-          val: 'needs-context',
+          val: 'annotation',
           note: 'Status filtering test note',
           reasons: ['factual_error'],
         }),

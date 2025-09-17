@@ -55,7 +55,7 @@ describe('Feed Sorting', () => {
       users.alice,
       testPostUri,
       'This post needs additional context - first note',
-      'needs-context',
+      'annotation',
       ['factual_error'],
     )
     aliceProposalUri = uri

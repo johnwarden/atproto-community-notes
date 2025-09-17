@@ -104,7 +104,7 @@ export async function createCommunityNote(
   user: TestUser,
   uri: string,
   note: string,
-  val: string = 'needs-context',
+  val: string = 'annotation',
   reasons: string[] = ['factual_error'],
 ): Promise<{ uri: string; response: Response }> {
   const response = await fetch(
@@ -292,7 +292,7 @@ export async function createScoredProposal(
   network: TestNetworkWrapper,
   user: TestUser,
   targetUri: string,
-  labelValue: string = 'needs-context',
+  labelValue: string = 'annotation',
   score: number = 0.0,
   status:
     | 'needs_more_ratings'
@@ -457,7 +457,7 @@ export async function createTestScoredProposals(
     users.alice,
     alicePostUri,
     "Alice's note on her own post",
-    'needs-context',
+    'annotation',
     ['disputed_claim'],
   )
   if (!aliceProposalUri) {
@@ -483,7 +483,7 @@ export async function createTestScoredProposals(
     users.alice,
     bobPostUri,
     "Alice's note on Bob's post",
-    'needs-context',
+    'annotation',
     ['disputed_claim'],
   )
   if (!aliceOnBobUri) {

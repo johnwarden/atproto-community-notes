@@ -60,7 +60,7 @@ describe('Score API', () => {
         body: JSON.stringify({
           typ: 'label',
           uri: testPostUri,
-          val: 'needs-context',
+          val: 'annotation',
           note: 'This post needs additional context for end-to-end testing',
           reasons: ['disputed_claim'],
         }),
@@ -147,12 +147,12 @@ describe('Score API', () => {
   //     'queryLabels should return labels array',
   //   )
   //   const hasNeedsContext = data.labels.some(
-  //     (label: any) => label.val === 'needs-context',
+  //     (label: any) => label.val === 'annotation',
   //   )
 
   //   assert.ok(
   //     data.labels.length > 0 && hasNeedsContext,
-  //     'queryLabels should return labels including needs-context',
+  //     'queryLabels should return labels including annotation',
   //   )
   // })
 
@@ -174,7 +174,7 @@ describe('Score API', () => {
 
   //   const helpfulLabels =
   //     data.labels?.filter(
-  //       (label: any) => label.val === 'needs-context' && label.neg !== true,
+  //       (label: any) => label.val === 'annotation' && label.neg !== true,
   //     ) || []
 
   //   assert.ok(
@@ -219,7 +219,7 @@ describe('Score API', () => {
         body: JSON.stringify({
           typ: 'label',
           uri: testPostUri2,
-          val: 'needs-context',
+          val: 'annotation',
           note: 'Second test note for negative label testing',
           reasons: ['disputed_claim'],
         }),
@@ -316,7 +316,7 @@ describe('Score API', () => {
 
   //   const negativeLabels =
   //     data.labels?.filter(
-  //       (label: any) => label.val === 'needs-context' && label.neg === true,
+  //       (label: any) => label.val === 'annotation' && label.neg === true,
   //     ) || []
 
   //   assert.ok(

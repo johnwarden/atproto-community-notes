@@ -30,7 +30,7 @@ TEST_POST_URI=$(create_test_post "$TOKEN" "This is a test post for feed testing"
 test_result "Test post created" "$([ -n "$TEST_POST_URI" ] && echo true || echo false)"
 
 # Create test proposal with scoring
-PROPOSAL_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_URI" "needs-context" "0.0" "needs_more_ratings" "This post needs additional context for feed testing")
+PROPOSAL_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_URI" "annotation" "0.0" "needs_more_ratings" "This post needs additional context for feed testing")
 test_result "Test proposal created with scoring" "$([ -n "$PROPOSAL_URI" ] && echo true || echo false)"
 
 # Test feed skeletons
@@ -100,7 +100,7 @@ test_result "'Needs Your Help' feed still shows test post to anonymous users aft
 TEST_POST_2_URI=$(create_test_post "$TOKEN" "This is a second test post for rated helpful feed testing")
 
 # Create a second proposal with helpful scoring
-PROPOSAL_2_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_2_URI" "needs-context" "1.0" "rated_helpful" "This post needs additional context for rated helpful feed testing")
+PROPOSAL_2_URI=$(create_scored_proposal "$TOKEN" "$TEST_POST_2_URI" "annotation" "1.0" "rated_helpful" "This post needs additional context for rated helpful feed testing")
 test_result "Second proposal created with helpful scoring" "$([ -n "$PROPOSAL_2_URI" ] && echo true || echo false)"
 
 # Test "Rated Helpful" feed

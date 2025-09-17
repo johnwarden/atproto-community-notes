@@ -80,7 +80,7 @@ describe('Feed Skeleton Test', () => {
       users.alice,
       testPostUri,
       'This post needs additional context for feed testing',
-      'needs-context',
+      'annotation',
       ['disputed_claim'],
     )
 

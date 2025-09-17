@@ -195,17 +195,17 @@ describe('Label Hydration', () => {
 
     // Check for expected label values
     const hasNeedsContext = communityNotesLabels.some(
-      (label: any) => label.val === 'needs-context',
+      (label: any) => label.val === 'annotation',
     )
     const hasProposedNote = communityNotesLabels.some(
-      (label: any) => label.val === 'proposal:label:needs-context',
+      (label: any) => label.val === 'proposed-annotation',
     )
 
     if (hasNeedsContext || hasProposedNote) {
       assert.ok(true, 'Post has expected Community Notes labels')
     } else {
       throw new Error(
-        `Post has unexpected label values: ${labelValues.join(', ')}. Expected: needs-context or proposal:label:needs-context`,
+        `Post has unexpected label values: ${labelValues.join(', ')}. Expected: annotation or proposed-annotation`,
       )
     }
   })
@@ -367,9 +367,9 @@ describe('Label Hydration', () => {
         //   )
         // })
 
-        // Check if positive label (needs-context) is gone
+        // Check if positive label (annotation) is gone
         const hasPositiveLabel = currentCommunityNotesLabels.some(
-          (label: any) => label.val === 'needs-context',
+          (label: any) => label.val === 'annotation',
         )
 
         if (!hasPositiveLabel) {

@@ -41,7 +41,7 @@ describe('Vote Deletion', () => {
       users.alice,
       testPostUri,
       'This post needs additional context for vote deletion testing',
-      'needs-context',
+      'annotation',
       ['disputed_claim'],
     )
     proposalUri = uri

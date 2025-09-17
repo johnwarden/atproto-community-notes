@@ -19,7 +19,7 @@ TOKEN=$(setup_authentication)
 # Create test data
 print_test_section "📝 Setting up test data"
 TEST_POST_URI=$(create_test_post "$TOKEN" "Test post for vote deletion testing")
-PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "This post needs additional context for vote deletion testing" "needs-context")
+PROPOSAL_URI=$(create_community_note "$TOKEN" "$TEST_POST_URI" "This post needs additional context for vote deletion testing" "annotation")
 
 # Test auto-rating deletion
 print_test_section "🗑️  Testing auto-rating deletion"

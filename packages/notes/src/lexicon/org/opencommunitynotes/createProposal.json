@@ -28,7 +28,7 @@
             "val": {
               "type": "string",
               "maxLength": 128,
-              "description": "For labels, the proposed label value (e.g., 'needs-context', 'misleading', etc.)"
+              "description": "For labels, the proposed label value (e.g., 'annotation', 'misleading', etc.)"
             },
             "note": {
               "type": "string",
@@ -146,7 +146,7 @@
         },
         "val": {
           "type": "string",
-          "description": "For labels, the proposed label value (e.g., 'needs-context', 'misleading', etc.)"
+          "description": "For labels, the proposed label value (e.g., 'annotation', 'misleading', etc.)"
         },
         "reasons": {
           "type": "array",

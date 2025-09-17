@@ -63,7 +63,7 @@ describe('getProposals', () => {
       users.alice,
       alicePostUri,
       'Alice note on her own post',
-      'needs-context',
+      'annotation',
       ['disputed_claim'],
     )
     aliceProposalUri = aliceProposalUriResult
@@ -95,7 +95,7 @@ describe('getProposals', () => {
       users.alice,
       bobPostUri,
       'Alice note on Bob post',
-      'needs-context',
+      'annotation',
       ['disputed_claim'],
     )
     aliceOnBobUri = aliceOnBobUriResult
@@ -313,31 +313,31 @@ describe('getProposals', () => {
   test('🏷️ Test 7: Label Filter Testing', async () => {
     // Test filtering by specific label values
 
-    // Filter for needs-context labels
+    // Filter for annotation labels
     const needsContextData = await getProposals(
       network,
       users.alice,
       alicePostUri,
       undefined,
-      'needs-context',
+      'annotation',
     )
     const needsContextProposals =
       needsContextData.proposals?.filter(
-        (p: any) => p.val === 'needs-context',
+        (p: any) => p.val === 'annotation',
       ) || []
     const needsContextCount = needsContextProposals.length
 
     assert.ok(
       needsContextCount > 0,
-      `Label filtering working for needs-context - Count > 0. Got: ${needsContextCount}`,
+      `Label filtering working for annotation - Count > 0. Got: ${needsContextCount}`,
     )
 
     // Verify each filter returns only the expected label type
     for (const proposal of needsContextProposals) {
       assert.strictEqual(
         proposal.val,
-        'needs-context',
-        'needs-context filter should only return needs-context proposals',
+        'annotation',
+        'annotation filter should only return annotation proposals',
       )
     }
 

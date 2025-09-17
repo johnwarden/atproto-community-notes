@@ -216,7 +216,7 @@ create_community_note() {
     local token="$1"
     local subject_uri="$2"
     local text="${3:-This post needs additional context.}"
-    local label_value="${4:-needs-context}"
+    local label_value="${4:-annotation}"
     local reasons="${5:-[\"disputed_claim\"]}"
 
 
@@ -249,7 +249,7 @@ create_community_note() {
 create_scored_proposal() {
     local token="$1"
     local target_uri="$2"
-    local label_value="${3:-needs-context}"
+    local label_value="${3:-annotation}"
     local score="${4:-0.0}"
     local status="${5:-needs_more_ratings}"
     local note_text="${6:-Test proposal with scoring}"
