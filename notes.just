@@ -51,8 +51,3 @@ get-posts URI="":
     echo $RESPONSE | jq .
 
 
-query-labels:
-    curl -s "http://localhost:2596/xrpc/com.atproto.label.queryLabels" | jq .
-
-
-
