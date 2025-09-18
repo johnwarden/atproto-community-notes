@@ -522,52 +522,23 @@ export class NotesService {
   private async syncSingleLabel(pendingLabel: PendingLabel): Promise<void> {
     let labelerSuccess = false
 
-    try {
-      // Sync to external labeler (simple HTTP GET)
-      await this.callExternalLabeler(pendingLabel)
-      labelerSuccess = true
-      log.debug(
-        { labelId: pendingLabel.id },
-        '🏷️  Label synced to external labeler',
-      )
-    } catch (error) {
-      log.error(
-        {
-          error: error instanceof Error ? error.message : error,
-          stack: error instanceof Error ? error.stack : undefined,
-          labelId: pendingLabel.id,
-          targetUri: pendingLabel.targetUri,
-          labelValue: pendingLabel.labelValue,
-        },
-        '🚨 Failed to sync label to external labeler',
-      )
-      throw error
-    }
+    // Sync to external labeler (simple HTTP GET)
+    await this.callExternalLabeler(pendingLabel)
 
-    if (labelerSuccess) {
-      await this.db!.db.deleteFrom('pendingLabels')
-        .where('id', '=', pendingLabel.id)
-        .execute()
+    await this.db!.db.deleteFrom('pendingLabels')
+      .where('id', '=', pendingLabel.id)
+      .execute()
 
-      log.info(
-        {
-          labelId: pendingLabel.id,
-          targetUri: pendingLabel.targetUri,
-          labelValue: pendingLabel.labelValue,
-          negative: pendingLabel.negative,
-          labelerDid: this.config.labeler.did,
-        },
-        '✅ Label fully synced and removed from pending',
-      )
-    } else {
-      log.warn(
-        {
-          labelId: pendingLabel.id,
-          labelerSuccess,
-        },
-        '⚠️  Label partially synced - keeping in pending for retry',
-      )
-    }
+    log.info(
+      {
+        labelId: pendingLabel.id,
+        targetUri: pendingLabel.targetUri,
+        labelValue: pendingLabel.labelValue,
+        negative: pendingLabel.negative,
+        labelerDid: this.config.labeler.did,
+      },
+      '✅ Label fully synced and removed from pending',
+    )
   }
 
   /**
