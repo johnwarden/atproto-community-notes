@@ -201,7 +201,7 @@ logs-tmux:
 # === Database Management ===
 
 # Connect to production notes database via SSH
-db-connect:
+db:
     @echo "🗄️ Connecting to production notes database..."
     cd ../.. && fly ssh console --command "sqlite3 {{DB_PATH}}"
 
