@@ -11,5 +11,5 @@ DB_PATH       := "/litefs/community-notes.db"
 
 # Public DIDs (not secrets)
 REPO_DID             := "did:plc:jqzvhkz7gxovq55fa7ibs6px"
-FEEDGEN_DOCUMENT_DID := "did:plc:api.c10t.es"
+FEEDGEN_DOCUMENT_DID := "did:web:api.c10t.es"
 LABELER_DID          := "did:plc:57fl6zy4wmpuknwpgtjqkvlz"
