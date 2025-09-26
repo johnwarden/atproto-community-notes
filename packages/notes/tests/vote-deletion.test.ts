@@ -79,7 +79,7 @@ describe('Vote Deletion', () => {
 
     // DELETION REQUEST: Delete auto-rating
     const deleteResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -131,7 +131,7 @@ describe('Vote Deletion', () => {
   test('⭐ Testing manual rating deletion', async () => {
     // MANUAL RATING CREATION: Create manual rating
     const manualRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -176,7 +176,7 @@ describe('Vote Deletion', () => {
 
     // MANUAL RATING DELETION: Delete manual rating
     const deleteManualResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -228,7 +228,7 @@ describe('Vote Deletion', () => {
   test('🚫 Testing error handling', async () => {
     // NON-EXISTENT RATING DELETION: Try to delete non-existent rating
     const deleteNonexistentResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {

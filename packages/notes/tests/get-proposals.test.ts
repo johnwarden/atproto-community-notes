@@ -213,7 +213,7 @@ describe('getProposals', () => {
   test('⭐ Test 5: Cross-Rating and Re-ordering', async () => {
     // Alice rates Bob's proposal
     const aliceRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -263,7 +263,7 @@ describe('getProposals', () => {
   test('📈 Test 6: Score-Based Ordering Within Rated Proposals', async () => {
     // Bob rates Alice's proposal to make both rated for Bob too
     const bobRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {

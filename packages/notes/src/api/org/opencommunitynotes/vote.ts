@@ -9,13 +9,13 @@ import { Server } from '../../../lexicon'
 import {
   HandlerError,
   HandlerSuccess,
-} from '../../../lexicon/types/org/opencommunitynotes/rateProposal'
+} from '../../../lexicon/types/org/opencommunitynotes/vote'
 import { appLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import { generateAid, generateVoteRkey } from '../../../utils'
 
 export default function (server: Server, ctx: AppContext) {
-  server.org.opencommunitynotes.rateProposal({
+  server.org.opencommunitynotes.vote({
     // Authentication is required for this endpoint
     handler: withErrorHandling(
       async ({ input, req }) => {
@@ -194,7 +194,7 @@ export default function (server: Server, ctx: AppContext) {
           } as HandlerSuccess
         }
       },
-      { endpoint: 'org.opencommunitynotes.rateProposal' },
+      { endpoint: 'org.opencommunitynotes.vote' },
     ),
   })
 }

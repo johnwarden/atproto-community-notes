@@ -221,7 +221,7 @@ create_community_note() {
 
 
 
-    local note_response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
+    local note_response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.propose" \
         -H "Authorization: Bearer $token" \
         -H "Content-Type: application/json" \
         -d "{\"typ\": \"label\", \"uri\": \"$subject_uri\", \"val\": \"$label_value\", \"note\": \"$text\", \"reasons\": $reasons}")
@@ -303,7 +303,7 @@ rate_proposal() {
     local rating_val="$3"  # 1 for helpful, -1 for not helpful
     local reasons="${4:-[\"helpful\"]}"
 
-    local rating_response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.rateProposal" \
+    local rating_response=$(curl -s -w "\n%{http_code}" -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.vote" \
         -H "Authorization: Bearer $token" \
         -H "Content-Type: application/json" \
         -d "{\"uri\": \"$proposal_uri\", \"val\": $rating_val, \"reasons\": $reasons}")

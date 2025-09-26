@@ -1,6 +1,6 @@
 {
   "lexicon": 1,
-  "id": "org.opencommunitynotes.rateProposal",
+  "id": "org.opencommunitynotes.vote",
   "defs": {
     "main": {
       "type": "procedure",
@@ -66,7 +66,7 @@
             },
             "rating": {
               "type": "ref",
-              "ref": "lex:org.opencommunitynotes.rateProposal#ratingView",
+              "ref": "lex:org.opencommunitynotes.vote#ratingView",
               "description": "The created/updated rating. Not present when deleting."
             },
             "deleted": {

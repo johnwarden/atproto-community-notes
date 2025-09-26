@@ -20,7 +20,7 @@ create-note URI="":
       \"val\": \"annotation\",
       \"note\": \"This is my test note\",
       \"reasons\": [\"factual_error\", \"missing_context\"]
-    }" "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+    }" "http://localhost:2595/xrpc/org.opencommunitynotes.propose" | jq
 
 # Run integration tests for the notes service
 test-dev-env:

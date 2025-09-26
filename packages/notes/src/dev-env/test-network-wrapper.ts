@@ -212,7 +212,7 @@ export class TestNetworkWrapper {
           const post = feedItem.post
           try {
             const response = await fetch(
-              `${this.notes.url}/xrpc/org.opencommunitynotes.createProposal`,
+              `${this.notes.url}/xrpc/org.opencommunitynotes.propose`,
               {
                 method: 'POST',
                 headers: {
@@ -253,7 +253,7 @@ export class TestNetworkWrapper {
           const proposalUri = proposalUris[i]
           try {
             const rateResponse = await fetch(
-              `${this.notes.url}/xrpc/org.opencommunitynotes.rateProposal`,
+              `${this.notes.url}/xrpc/org.opencommunitynotes.vote`,
               {
                 method: 'POST',
                 headers: {

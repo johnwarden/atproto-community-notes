@@ -30,7 +30,7 @@ VIEWER_RATING=$(echo "$PROPOSALS_RESPONSE" | jq -r '.proposals[0].viewer.rating.
 test_result "Auto-rating exists" "$([ "$VIEWER_RATING" = "1" ] && echo true || echo false)"
 
 # Delete auto-rating
-DELETE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.rateProposal" \
+DELETE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.vote" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -60,7 +60,7 @@ VIEWER_RATING_MANUAL=$(echo "$PROPOSALS_RESPONSE_MANUAL" | jq -r '.proposals[0].
 test_result "Manual rating exists" "$([ "$VIEWER_RATING_MANUAL" = "-1" ] && echo true || echo false)"
 
 # Delete manual rating
-DELETE_MANUAL_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.rateProposal" \
+DELETE_MANUAL_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.vote" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -81,7 +81,7 @@ test_result "Manual rating deleted" "$([ "$VIEWER_RATING_FINAL" = "null" ] && ec
 print_test_section "🚫 Testing error handling"
 
 # Try to delete non-existent rating
-DELETE_NONEXISTENT_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.rateProposal" \
+DELETE_NONEXISTENT_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.vote" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{

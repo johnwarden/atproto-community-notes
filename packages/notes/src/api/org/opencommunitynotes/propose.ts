@@ -10,7 +10,7 @@ import { Server } from '../../../lexicon'
 import {
   HandlerError,
   HandlerSuccess,
-} from '../../../lexicon/types/org/opencommunitynotes/createProposal'
+} from '../../../lexicon/types/org/opencommunitynotes/propose'
 import { appLogger as log } from '../../../logger'
 import { withErrorHandling } from '../../../middleware/error-handling'
 import {
@@ -20,7 +20,7 @@ import {
   normalizeAtUri,
 } from '../../../utils'
 import { resHeaders } from '../../util'
-import { vote } from './rateProposal'
+import { vote } from './vote'
 
 // Helper function to validate AT Protocol target URIs
 async function validateTargetUri(
@@ -113,7 +113,7 @@ async function validateTargetUri(
 }
 
 export default function (server: Server, ctx: AppContext) {
-  server.org.opencommunitynotes.createProposal({
+  server.org.opencommunitynotes.propose({
     // Authentication is required for this endpoint
     handler: withErrorHandling(
       async ({ input, req }) => {
@@ -390,7 +390,7 @@ export default function (server: Server, ctx: AppContext) {
           headers: resHeaders({}),
         } as HandlerSuccess
       },
-      { endpoint: 'org.opencommunitynotes.createProposal' },
+      { endpoint: 'org.opencommunitynotes.propose' },
     ),
   })
 }

@@ -179,7 +179,7 @@ describe('Feed Sorting', () => {
   test("⭐ Test 5: Alice Rates Bob's Note", async () => {
     // Alice rates Bob's proposal
     const aliceRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -252,7 +252,7 @@ describe('Feed Sorting', () => {
   test("⭐ Test 7: Bob Rates Alice's Note", async () => {
     // Bob rates Alice's proposal
     const bobRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {

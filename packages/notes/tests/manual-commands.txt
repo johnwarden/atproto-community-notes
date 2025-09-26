@@ -52,7 +52,7 @@ NOTE_URI=$(curl -s -H "Authorization: Bearer $TOKEN" \
 
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d "{\"uri\":\"$NOTE_URI\",\"val\":1,\"reasons\":[\"helpful\"]}" \
-  "http://localhost:2595/xrpc/org.opencommunitynotes.rateProposal" | jq
+  "http://localhost:2595/xrpc/org.opencommunitynotes.vote" | jq
 
 # 5. View rating in note response (check viewer.rating structure)
 curl -s -H "Authorization: Bearer $TOKEN" \
@@ -67,7 +67,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
     \"note\": \"This post needs additional context\",
     \"reasons\": [\"factual_error\"]
   }" \
-  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+  "http://localhost:2595/xrpc/org.opencommunitynotes.propose" | jq
 
 # 7. Test HTTP URI support (for external content)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
@@ -78,7 +78,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
     "note": "This article contains disputed claims",
     "reasons": ["disputed_claim"]
   }' \
-  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+  "http://localhost:2595/xrpc/org.opencommunitynotes.propose" | jq
 
 # 8. Test error cases
 
@@ -93,7 +93,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
     "val": "annotation",
     "note": ""
   }' \
-  "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
+  "http://localhost:2595/xrpc/org.opencommunitynotes.propose" | jq
 
 # Run full test suite
 just test-notes

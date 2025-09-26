@@ -104,7 +104,7 @@ describe('Notes API', () => {
 
     // Test duplicate prevention
     const duplicateResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -133,7 +133,7 @@ describe('Notes API', () => {
   test('🏷️ Test 2.6: Multiple Labels Per User Per Post', async () => {
     // Create a second proposal with a different label - this should succeed
     const differentLabelResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -185,7 +185,7 @@ describe('Notes API', () => {
 
     // Test that duplicate with second label is also prevented
     const duplicateMisleadingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -219,7 +219,7 @@ describe('Notes API', () => {
   test('⭐ Test 3: Note Rating System', async () => {
     // Create rating on real proposal
     const ratingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -259,7 +259,7 @@ describe('Notes API', () => {
 
     // Test rating deletion
     const deleteResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -298,7 +298,7 @@ describe('Notes API', () => {
   test('📋 Test 5: Input Validation', async () => {
     // Test input validation with invalid data
     const invalidResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -327,7 +327,7 @@ describe('Notes API', () => {
     // Test non-AT Protocol URI support
     const httpUri = `https://example.com/test-${Date.now()}`
     const httpNoteResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -354,7 +354,7 @@ describe('Notes API', () => {
 
     // Try to rate the HTTP URI proposal
     const httpRatingResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
       {
         method: 'POST',
         headers: {
@@ -384,7 +384,7 @@ describe('Notes API', () => {
 
     // Create a proposal for status testing (without rating it)
     const statusCreateResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {

@@ -50,7 +50,7 @@ describe('Score API', () => {
     testPostUri = postData.uri
     // Create community note
     const noteResponse = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {
@@ -209,7 +209,7 @@ describe('Score API', () => {
     testPostUri2 = postData2.uri
 
     const noteResponse2 = await fetch(
-      `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
       {
         method: 'POST',
         headers: {

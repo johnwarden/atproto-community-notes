@@ -61,7 +61,7 @@ if [ -n "$TEST_POST_URI" ] && [ "$TEST_POST_URI" != "null" ]; then
         fi
 
         # Test duplicate prevention
-        DUPLICATE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
+        DUPLICATE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.propose" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $TOKEN" \
           -d "{\"typ\": \"label\", \"uri\": \"$TEST_POST_URI\", \"val\": \"annotation\", \"note\": \"Duplicate note attempt\", \"reasons\": [\"disputed_claim\"]}")
@@ -72,7 +72,7 @@ if [ -n "$TEST_POST_URI" ] && [ "$TEST_POST_URI" != "null" ]; then
         print_test_section "🏷️ Test 2.6: Multiple Labels Per User Per Post"
 
         # Create a second proposal with a different label - this should succeed
-        DIFFERENT_LABEL_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
+        DIFFERENT_LABEL_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.propose" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $TOKEN" \
           -d "{\"typ\": \"label\", \"uri\": \"$TEST_POST_URI\", \"val\": \"misleading\", \"note\": \"This post is misleading - different label\", \"reasons\": [\"disputed_claim\"]}")
@@ -95,7 +95,7 @@ if [ -n "$TEST_POST_URI" ] && [ "$TEST_POST_URI" != "null" ]; then
         test_result "Proposals have different labels" "$([ "$FIRST_LABEL" != "$SECOND_LABEL" ] && echo true || echo false)" "Labels: $FIRST_LABEL, $SECOND_LABEL"
 
         # Test that duplicate with second label is also prevented
-        DUPLICATE_MISLEADING_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
+        DUPLICATE_MISLEADING_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.propose" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer $TOKEN" \
           -d "{\"typ\": \"label\", \"uri\": \"$TEST_POST_URI\", \"val\": \"misleading\", \"note\": \"Another misleading attempt\", \"reasons\": [\"disputed_claim\"]}")
@@ -129,7 +129,7 @@ HAS_TIMESTAMPS=$(echo "$VIEWER_RESPONSE" | jq '.proposals[0].viewer.rating | has
 test_result "Rating structure valid" "$([ "$HAS_VIEWER_RATING" = "\"object\"" ] && [ "$RATING_VAL" = "1" ] && [ "$HAS_TIMESTAMPS" = "true" ] && echo true || echo false)" "Response: $VIEWER_RESPONSE"
 
 # Test rating deletion
-DELETE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.rateProposal" \
+DELETE_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.vote" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d "{\"uri\": \"$REAL_PROPOSAL_URI\", \"delete\": true}")
@@ -147,7 +147,7 @@ test_result "Proposals retrieved successfully" "$([ "$GET_NOTES_ERROR" = "null" 
 
 # Test 5: Input validation
 print_test_section "📋 Test 5: Input Validation"
-INVALID_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.createProposal" \
+INVALID_RESPONSE=$(curl -s -X POST "$NOTES_SERVICE_URL/xrpc/org.opencommunitynotes.propose" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{

@@ -5,10 +5,10 @@ import {
 import cors from 'cors'
 import express, { json } from 'express'
 import { AtpAgent } from '@atproto/api'
-import createProposal from './api/org/opencommunitynotes/createProposal'
+import propose from './api/org/opencommunitynotes/propose'
 import getConfig from './api/org/opencommunitynotes/getConfig'
 import getProposals from './api/org/opencommunitynotes/getProposals'
-import rateProposal from './api/org/opencommunitynotes/rateProposal'
+import vote from './api/org/opencommunitynotes/vote'
 import { AuthService } from './auth'
 import { createRouter as createBasicRouter } from './basic-routes'
 import {
@@ -118,8 +118,8 @@ export class NotesService {
     // Register endpoints
     getConfig(server, ctx)
     getProposals(server, ctx)
-    rateProposal(server, ctx)
-    createProposal(server, ctx)
+    vote(server, ctx)
+    propose(server, ctx)
 
     // Register feed endpoints
     registerFeedHandlers(app, ctx)

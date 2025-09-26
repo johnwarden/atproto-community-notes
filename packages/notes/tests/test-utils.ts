@@ -108,7 +108,7 @@ export async function createCommunityNote(
   reasons: string[] = ['factual_error'],
 ): Promise<{ uri: string; response: Response }> {
   const response = await fetch(
-    `${network.notes?.url}/xrpc/org.opencommunitynotes.createProposal`,
+    `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
     {
       method: 'POST',
       headers: {
@@ -146,7 +146,7 @@ export async function createRating(
   rating: 'helpful' | 'not-helpful' | 'somewhat-helpful',
 ): Promise<{ uri: string; response: Response }> {
   const response = await fetch(
-    `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+    `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
     {
       method: 'POST',
       headers: {
@@ -182,7 +182,7 @@ export async function deleteRating(
   proposalUri: string,
 ): Promise<boolean> {
   const response = await fetch(
-    `${network.notes?.url}/xrpc/org.opencommunitynotes.rateProposal`,
+    `${network.notes?.url}/xrpc/org.opencommunitynotes.vote`,
     {
       method: 'POST',
       headers: {
