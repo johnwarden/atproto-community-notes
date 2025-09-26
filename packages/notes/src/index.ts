@@ -77,7 +77,7 @@ export class NotesService {
     // Add CORS support
     app.use(
       cors({
-        origin: ['http://localhost:19006', 'http://localhost:3000'], // Add frontend origins
+        origin: true, // Allow requests from any domain
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: [
