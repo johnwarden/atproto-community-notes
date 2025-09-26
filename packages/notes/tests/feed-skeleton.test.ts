@@ -103,7 +103,79 @@ describe('Feed Skeleton Test', () => {
     )
   })
 
-  test('📊 Test 3: Feed Skeleton Endpoints', async () => {
+  test('🆕 Test 3: Unscored Proposals Appear in Feeds', async () => {
+    // Create a second test post for unscored proposal testing
+    const unscoredTestPostUri = await createTestPost(
+      users.alice,
+      'This post will have an unscored proposal',
+    )
+
+    assert.ok(
+      unscoredTestPostUri && unscoredTestPostUri.length > 0,
+      `Unscored test post created - URI must be non-empty. Got: ${unscoredTestPostUri}`,
+    )
+
+    // Create a proposal WITHOUT setting any score (simulates newly created proposal)
+    const { uri: unscoredNoteUri } = await createCommunityNote(
+      network,
+      users.alice,
+      unscoredTestPostUri,
+      'This proposal has no score record yet',
+      'annotation',
+      ['disputed_claim'],
+    )
+
+    assert.ok(
+      unscoredNoteUri && unscoredNoteUri.length > 0,
+      `Unscored proposal created - URI must be non-empty. Got: ${unscoredNoteUri}`,
+    )
+
+    // DO NOT set any score - this simulates a newly created proposal before scoring algorithm runs
+
+    // Test that unscored proposals appear in "new" feed
+    const newFeed = feeds.find((f) => f.uri.includes('new'))
+    assert.ok(newFeed, 'Should find new feed')
+
+    const encodedNewFeedUri = encodeURIComponent(newFeed.uri)
+    const newFeedResponse = await fetch(
+      `${network.notes?.url}/xrpc/app.bsky.feed.getFeedSkeleton?feed=${encodedNewFeedUri}`,
+    )
+
+    assert.ok(newFeedResponse.ok, 'New feed request should succeed')
+    const newFeedData = await newFeedResponse.json()
+    
+    const newFeedContainsPost = newFeedData.feed.some((item: any) => 
+      item.post === unscoredTestPostUri
+    )
+
+    assert.ok(
+      newFeedContainsPost,
+      `New feed should contain unscored proposal post - Post ${unscoredTestPostUri} should appear in new feed`,
+    )
+
+    // Test that unscored proposals appear in "needs_your_help" feed
+    const needsHelpFeed = feeds.find((f) => f.uri.includes('needs_your_help'))
+    assert.ok(needsHelpFeed, 'Should find needs_your_help feed')
+
+    const encodedNeedsHelpFeedUri = encodeURIComponent(needsHelpFeed.uri)
+    const needsHelpFeedResponse = await fetch(
+      `${network.notes?.url}/xrpc/app.bsky.feed.getFeedSkeleton?feed=${encodedNeedsHelpFeedUri}`,
+    )
+
+    assert.ok(needsHelpFeedResponse.ok, 'Needs your help feed request should succeed')
+    const needsHelpFeedData = await needsHelpFeedResponse.json()
+    
+    const needsHelpFeedContainsPost = needsHelpFeedData.feed.some((item: any) => 
+      item.post === unscoredTestPostUri
+    )
+
+    assert.ok(
+      needsHelpFeedContainsPost,
+      `Needs your help feed should contain unscored proposal post - Post ${unscoredTestPostUri} should appear in needs_your_help feed`,
+    )
+  })
+
+  test('📊 Test 4: Feed Skeleton Endpoints', async () => {
     // Test each feed skeleton endpoint
     const feedResults: { [key: string]: boolean } = {}
 
@@ -135,7 +207,7 @@ describe('Feed Skeleton Test', () => {
     )
   })
 
-  test('🔐 Test 4: Authenticated vs Anonymous Access', async () => {
+  test('🔐 Test 5: Authenticated vs Anonymous Access', async () => {
     // Test "Needs Your Help" feed with both anonymous and authenticated access
     const needsHelpFeed = feeds.find((f) => f.uri.includes('needs_your_help'))
     assert.ok(needsHelpFeed, 'Should find needs_your_help feed')
@@ -178,7 +250,7 @@ describe('Feed Skeleton Test', () => {
     )
   })
 
-  test('📄 Test 5: Pagination', async () => {
+  test('📄 Test 6: Pagination', async () => {
     // Test pagination with limit parameter
     const newFeed = feeds.find((f) => f.uri.includes('new'))
     assert.ok(newFeed, 'Should find new feed')
@@ -205,7 +277,7 @@ describe('Feed Skeleton Test', () => {
     )
   })
 
-  test('🌅 Test 6: Feed Generator Integration', async () => {
+  test('🌅 Test 7: Feed Generator Integration', async () => {
     // Test feed generator integration points
 
     // Verify feed generator DID is returned correctly
@@ -237,7 +309,7 @@ describe('Feed Skeleton Test', () => {
     )
   })
 
-  test('🚫 Test 7: Error Handling', async () => {
+  test('🚫 Test 8: Error Handling', async () => {
     // Test error handling with invalid feed URI
     const invalidFeedUri = `at://${feedGeneratorDid}/app.bsky.feed.generator/invalid-feed`
     const encodedInvalidUri = encodeURIComponent(invalidFeedUri)

@@ -18,12 +18,16 @@ export async function getNewFeed(
   const startTime = Date.now()
 
   try {
-    // Join score and record tables to get chronological ordering by proposal creation time
-    const results = await ctx.scoresDb.db
-      .selectFrom('score as s')
-      .innerJoin('record as r', 'r.uri', 's.proposalUri')
-      .select(['s.targetUri', 'r.indexedAt'])
-      .where('s.status', '=', 'needs_more_ratings')
+    // Start from record table and LEFT JOIN score table to include unscored proposals
+    const results = await ctx.notesDb.db
+      .selectFrom('record as r')
+      .leftJoin('score as s', 's.proposalUri', 'r.uri')
+      .select([sql`json_extract(r.record, '$.uri')`.as('targetUri'), 'r.indexedAt'])
+      .where('r.collection', '=', 'social.pmsky.proposal')
+      .where(
+        // Include proposals with no score OR status = 'needs_more_ratings'
+        sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+      )
       .where('r.indexedAt', '<', new Date(offsetTime).toISOString())
       .orderBy('r.indexedAt', 'desc') // Sort by proposal creation time (chronological)
       .limit(validatedLimit + 1) // +1 to check for next page
@@ -69,12 +73,22 @@ export async function getNeedsYourHelpFeed(
     if (ctx.userDid) {
       const userAid = generateAid(ctx.userDid, ctx.servicePrivateKey)
 
-      // Step 1: Get all posts with notes needing ratings
-      const postsWithScores = await ctx.scoresDb.db
-        .selectFrom('score as s')
-        .select(['s.targetUri', 's.proposalUri', 's.scoreEventTime', 's.score'])
-        .where('s.status', '=', 'needs_more_ratings')
-        .where('s.scoreEventTime', '<', offsetTime)
+      // Step 1: Get all posts with notes needing ratings (including unscored proposals)
+      const postsWithScores = await ctx.notesDb.db
+        .selectFrom('record as r')
+        .leftJoin('score as s', 's.proposalUri', 'r.uri')
+        .select([
+          sql`json_extract(r.record, '$.uri')`.as('targetUri'),
+          'r.uri as proposalUri',
+          sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`.as('scoreEventTime'),
+          sql`COALESCE(s.score, 0.0)`.as('score'),
+        ])
+        .where('r.collection', '=', 'social.pmsky.proposal')
+        .where(
+          // Include proposals with no score OR status = 'needs_more_ratings'
+          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+        )
+        .where(sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`, '<', offsetTime)
         .execute()
 
       // Step 2: Get all proposals this user has rated
@@ -93,12 +107,12 @@ export async function getNeedsYourHelpFeed(
       const postsWithUnratedNotes = new Map<string, { scoreEventTime: number; score: number }>()
 
       for (const score of postsWithScores) {
-        if (!ratedProposalUris.has(score.proposalUri)) {
-          const existing = postsWithUnratedNotes.get(score.targetUri)
-          if (!existing || score.score > existing.score) {
-            postsWithUnratedNotes.set(score.targetUri, {
-              scoreEventTime: score.scoreEventTime,
-              score: score.score,
+        if (!ratedProposalUris.has(score.proposalUri as string)) {
+          const existing = postsWithUnratedNotes.get(score.targetUri as string)
+          if (!existing || (score.score as number) > existing.score) {
+            postsWithUnratedNotes.set(score.targetUri as string, {
+              scoreEventTime: score.scoreEventTime as number,
+              score: score.score as number,
             })
           }
         }
@@ -130,17 +144,22 @@ export async function getNeedsYourHelpFeed(
 
       return feedResult
     } else {
-      // Anonymous users see all posts with notes needing ratings, sorted by highest score
-      const results = await ctx.scoresDb.db
-        .selectFrom('score as s')
+      // Anonymous users see all posts with notes needing ratings (including unscored), sorted by highest score
+      const results = await ctx.notesDb.db
+        .selectFrom('record as r')
+        .leftJoin('score as s', 's.proposalUri', 'r.uri')
         .select([
-          's.targetUri',
-          sql<number>`MAX(s.scoreEventTime)`.as('scoreEventTime'),
-          sql<number>`MAX(s.score)`.as('score'),
+          sql`json_extract(r.record, '$.uri')`.as('targetUri'),
+          sql<number>`MAX(COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000))`.as('scoreEventTime'),
+          sql<number>`MAX(COALESCE(s.score, 0.0))`.as('score'),
         ])
-        .where('s.status', '=', 'needs_more_ratings')
-        .where('s.scoreEventTime', '<', offsetTime)
-        .groupBy('s.targetUri')
+        .where('r.collection', '=', 'social.pmsky.proposal')
+        .where(
+          // Include proposals with no score OR status = 'needs_more_ratings'
+          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+        )
+        .where(sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`, '<', offsetTime)
+        .groupBy(sql`json_extract(r.record, '$.uri')`)
         .orderBy('score', 'desc') // Sort by highest score descending
         .limit(validatedLimit + 1)
         .execute()
