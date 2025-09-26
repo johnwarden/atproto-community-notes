@@ -4,7 +4,7 @@ import { FeedScaffolding } from './scaffolding'
 import { FeedContext, FeedSkeleton } from './types'
 
 /**
- * "New" feed - newest proposed notes
+ * "New" feed - newest proposed notes that need more ratings, sorted chronologically
  */
 export async function getNewFeed(
   ctx: FeedContext,
@@ -18,12 +18,14 @@ export async function getNewFeed(
   const startTime = Date.now()
 
   try {
-    const results = await ctx.notesDb.db
-      .selectFrom('record')
-      .select([sql`json_extract(record, '$.uri')`.as('targetUri'), 'indexedAt'])
-      .where('collection', '=', 'social.pmsky.proposal')
-      .where('indexedAt', '<', new Date(offsetTime).toISOString())
-      .orderBy('indexedAt', 'desc')
+    // Join score and record tables to get chronological ordering by proposal creation time
+    const results = await ctx.scoresDb.db
+      .selectFrom('score as s')
+      .innerJoin('record as r', 'r.uri', 's.proposalUri')
+      .select(['s.targetUri', 'r.indexedAt'])
+      .where('s.status', '=', 'needs_more_ratings')
+      .where('r.indexedAt', '<', new Date(offsetTime).toISOString())
+      .orderBy('r.indexedAt', 'desc') // Sort by proposal creation time (chronological)
       .limit(validatedLimit + 1) // +1 to check for next page
       .execute()
 
@@ -70,7 +72,7 @@ export async function getNeedsYourHelpFeed(
       // Step 1: Get all posts with notes needing ratings
       const postsWithScores = await ctx.scoresDb.db
         .selectFrom('score as s')
-        .select(['s.targetUri', 's.proposalUri', 's.scoreEventTime'])
+        .select(['s.targetUri', 's.proposalUri', 's.scoreEventTime', 's.score'])
         .where('s.status', '=', 'needs_more_ratings')
         .where('s.scoreEventTime', '<', offsetTime)
         .execute()
@@ -87,23 +89,29 @@ export async function getNeedsYourHelpFeed(
         userVotes.map((v) => v.proposalUri as string),
       )
 
-      // Step 3: Filter to posts that have at least one unrated proposal
-      const postsWithUnratedNotes = new Map<string, number>()
+      // Step 3: Filter to posts that have at least one unrated proposal and track highest score
+      const postsWithUnratedNotes = new Map<string, { scoreEventTime: number; score: number }>()
 
       for (const score of postsWithScores) {
         if (!ratedProposalUris.has(score.proposalUri)) {
-          const currentTime = postsWithUnratedNotes.get(score.targetUri) || 0
-          postsWithUnratedNotes.set(
-            score.targetUri,
-            Math.max(currentTime, score.scoreEventTime),
-          )
+          const existing = postsWithUnratedNotes.get(score.targetUri)
+          if (!existing || score.score > existing.score) {
+            postsWithUnratedNotes.set(score.targetUri, {
+              scoreEventTime: score.scoreEventTime,
+              score: score.score,
+            })
+          }
         }
       }
 
-      // Step 4: Convert to feed format and sort
+      // Step 4: Convert to feed format and sort by score descending
       const results = Array.from(postsWithUnratedNotes.entries())
-        .map(([targetUri, scoreEventTime]) => ({ targetUri, scoreEventTime }))
-        .sort((a, b) => b.scoreEventTime - a.scoreEventTime)
+        .map(([targetUri, { scoreEventTime, score }]) => ({ 
+          targetUri, 
+          scoreEventTime,
+          score 
+        }))
+        .sort((a, b) => b.score - a.score) // Sort by score descending
         .slice(0, validatedLimit + 1)
 
       const feedResult = FeedScaffolding.processFeedResults(
@@ -122,17 +130,18 @@ export async function getNeedsYourHelpFeed(
 
       return feedResult
     } else {
-      // Anonymous users see all posts with notes needing ratings
+      // Anonymous users see all posts with notes needing ratings, sorted by highest score
       const results = await ctx.scoresDb.db
         .selectFrom('score as s')
         .select([
           's.targetUri',
           sql<number>`MAX(s.scoreEventTime)`.as('scoreEventTime'),
+          sql<number>`MAX(s.score)`.as('score'),
         ])
         .where('s.status', '=', 'needs_more_ratings')
         .where('s.scoreEventTime', '<', offsetTime)
         .groupBy('s.targetUri')
-        .orderBy('scoreEventTime', 'desc')
+        .orderBy('score', 'desc') // Sort by highest score descending
         .limit(validatedLimit + 1)
         .execute()
 
