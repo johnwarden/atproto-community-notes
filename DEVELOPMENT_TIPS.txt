@@ -4,7 +4,7 @@
 - `just build notes` - (or `just build dev-env`, etc.) Build the notes package after code changes, before testing.
 - `just test notes` - Run tests (with timeout)
 - `just test notes notes-api.test.ts` - Run specific test file under the notes/tests
-- `just notes-db` - Access the notes database interactively
+- `just db` - Access the notes database interactively
 - `just recent-logs notes 200` - Check recent structured logs (not console logs) from the dev-env
 - `just test-logs notes 200` - Check recent structured logs (not console logs) from the last test run
 - `just process-logs` - View stdout from dev-env (can freeze, be careful)

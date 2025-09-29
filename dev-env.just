@@ -96,8 +96,8 @@ pds-db:
     rm "$INIT_SCRIPT"
 
 # Open SQLite connection to the notes database (interactive or execute SQL)
-# Usage: just notes-db [SQL_STATEMENT]
-notes-db *SQL:
+# Usage: just db [SQL_STATEMENT]
+db *SQL:
     #!/usr/bin/env bash
     # Get the notes database path from introspection server
     DB_PATH=$(curl -s http://localhost:2581 2>/dev/null | jq -r '.notes.dbPath // empty')
@@ -129,39 +129,6 @@ notes-db *SQL:
         sqlite3 "$DB_PATH" "{{ SQL }}"
     fi
 
-# Open SQLite connection to the notes database for scoring data (interactive or execute SQL)
-# Usage: just scores-db [SQL_STATEMENT]
-scores-db *SQL:
-    #!/usr/bin/env bash
-    # Get the notes database path from introspection server (now contains scoring data)
-    DB_PATH=$(curl -s http://localhost:2581 2>/dev/null | jq -r '.notes.dbPath // empty')
-
-    if [[ -z "$DB_PATH" || "$DB_PATH" == "null" || "$DB_PATH" == "empty" ]]; then
-        echo "❌ Could not get notes database path from introspection server"
-        echo "   Make sure the dev-env is running with 'just start'"
-        exit 1
-    fi
-
-    if [[ ! -f "$DB_PATH" ]]; then
-        echo "❌ Notes database file not found: $DB_PATH"
-        exit 1
-    fi
-
-    if [[ -z "{{ SQL }}" ]]; then
-        # Interactive mode
-        echo "🏷️  Connecting to notes database (scoring tables): $DB_PATH"
-        echo "   Contains: scoreEvent, score, pendingLabels (consolidated scoring data)"
-        echo "   Useful commands:"
-        echo "     .tables          - List all tables"
-        echo "     .schema          - Show table schemas"
-        echo "     .quit            - Exit"
-        echo ""
-        sqlite3 "$DB_PATH"
-    else
-        # Execute SQL statement
-        echo "🏷️  Executing SQL on notes database: $DB_PATH"
-        sqlite3 "$DB_PATH" "{{ SQL }}"
-    fi
 
 # Connect to PostgreSQL database used by Bsky and Ozone
 postgres:
