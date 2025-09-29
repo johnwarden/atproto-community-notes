@@ -1,6 +1,6 @@
 # dev-infra
 
-Helpers for working with postgres and redis locally. Previously known as `pg`.
+Helpers for working with postgres, redis, and test networks locally. Previously known as `pg`.
 
 ## Usage
 
@@ -30,11 +30,24 @@ Going to remove pg-db_test-1
  ⠿ Container pg-db_test-1  Removed
 ```
 
-### `with-redis-and-test-db.sh`
+### `with-test-redis-and-db.sh`
 
 This script is similar to `with-test-db.sh`, but in addition to an ephemeral/single-use postgres database it also provides a single-use redis instance. When the script starts, Dockerized postgres and redis containers start-up, and when the script completes the containers are removed.
 
 The environment variables `DB_POSTGRES_URL` and `REDIS_HOST` will be set with a connection strings that can be used to connect to postgres and redis respectively.
+
+### `with-test-network.sh`
+
+This script runs commands with a complete AT Protocol test network including the notes service. It starts postgres, redis, and a full test network with mock users and data, runs your command, then cleans up everything when done.
+
+The script provides environment variables including `INTROSPECT_PORT` for accessing service information.
+
+See [TEST_NETWORK.md](./TEST_NETWORK.md) for detailed usage instructions.
+
+**Example**
+```bash
+./with-test-network.sh python my_scoring_service.py
+```
 
 ### `docker-compose.yaml`
 
