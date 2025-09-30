@@ -22,6 +22,15 @@ create-note URI="":
       \"reasons\": [\"factual_error\", \"missing_context\"]
     }" "http://localhost:2595/xrpc/org.opencommunitynotes.createProposal" | jq
 
+
+rate-helpful NOTE_URI="":
+    #!/usr/bin/env bash
+    curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "{
+      \"proposalUri\": \"{{NOTE_URI}}\",
+      \"status\": \"rated_helpful\",
+      \"score\": 0.8
+    }" "http://localhost:2596/score"
+
 # Run integration tests for the notes service
 test-dev-env:
 	cd packages/notes/tests; ./run-tests.sh
