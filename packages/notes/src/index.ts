@@ -40,6 +40,7 @@ export class NotesService {
   private server?: HttpServer
   private internalServer?: HttpServer
   private db?: Database
+  private labelSyncInterval?: NodeJS.Timeout
 
   public repoAccount: RepoAccount
   public feedgenDocumentDid: string
@@ -215,6 +216,9 @@ export class NotesService {
     this.internalServer.listen(internalApiPort, '::', () => {
       log.info({ internalApiPort }, `Internal HTTP listening on IPv6`)
     })
+
+    // Start background label sync
+    this.startBackgroundLabelSync()
 
     return this.server
   }
@@ -477,20 +481,23 @@ export class NotesService {
 
   /**
    * Sync all pending labels with comprehensive error handling
+   * @returns Number of labels successfully synced
    */
-  async syncPendingLabels(): Promise<void> {
+  async syncPendingLabels(): Promise<number> {
     try {
       const pendingLabels = await this.getPendingLabels()
 
       if (pendingLabels.length === 0) {
-        return
+        return 0
       }
 
       log.debug({ count: pendingLabels.length }, 'Syncing pending labels')
 
+      let syncedCount = 0
       for (const pendingLabel of pendingLabels) {
         try {
           await this.syncSingleLabel(pendingLabel)
+          syncedCount++
         } catch (error) {
           log.error(
             {
@@ -506,6 +513,8 @@ export class NotesService {
           // Continue with other labels instead of failing entirely
         }
       }
+
+      return syncedCount
     } catch (error) {
       log.error(
         {
@@ -515,6 +524,34 @@ export class NotesService {
         'Failed to sync pending labels',
       )
       // Don't throw - this should not fail the calling operation
+      return 0
+    }
+  }
+
+  /**
+   * Start background label sync process
+   */
+  private startBackgroundLabelSync(): void {
+    // Initial sync after 30 seconds (let service stabilize)
+    setTimeout(() => {
+      this.backgroundSyncPendingLabels()
+    }, 30_000)
+
+    // Then every 5 minutes
+    this.labelSyncInterval = setInterval(() => {
+      this.backgroundSyncPendingLabels()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    log.info('Background label sync started (5 minute interval)')
+  }
+
+  /**
+   * Background sync wrapper that logs results
+   */
+  private async backgroundSyncPendingLabels(): Promise<void> {
+    const syncedCount = await this.syncPendingLabels()
+    if (syncedCount > 0) {
+      log.info({ count: syncedCount }, 'Background synced labels')
     }
   }
 
@@ -657,6 +694,13 @@ export class NotesService {
   }
 
   async close(): Promise<void> {
+    // Clean up background label sync
+    if (this.labelSyncInterval) {
+      clearInterval(this.labelSyncInterval)
+      this.labelSyncInterval = undefined
+      log.info('Background label sync stopped')
+    }
+
     if (this.server) {
       await new Promise<void>((resolve, reject) => {
         this.server!.close((err) => {
