@@ -563,30 +563,77 @@ export class NotesService {
       'Calling external labeler service',
     )
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'atproto-community-notes/1.0',
-      },
-    })
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'atproto-community-notes/1.0',
+        },
+      })
 
-    const responseData = await response.json()
+      let responseData
+      try {
+        responseData = await response.json()
+      } catch (jsonError) {
+        responseData = await response.text()
+      }
 
-    log.info(
-      {
-        labelId: pendingLabel.id,
-        status: response.status,
-        statusText: response.statusText,
-        responseData,
-      },
-      'Labeler response received',
-    )
+      if (response.ok) {
+        log.info(
+          {
+            labelId: pendingLabel.id,
+            status: response.status,
+            statusText: response.statusText,
+            responseData,
+          },
+          'Labeler response received successfully',
+        )
+      } else {
+        // Log detailed error information including labeler service error message
+        log.error(
+          {
+            labelId: pendingLabel.id,
+            requestUri: url,
+            requestBody: {
+              uri: pendingLabel.targetUri,
+              val: pendingLabel.labelValue,
+              neg: pendingLabel.negative ? 'true' : 'false',
+            },
+            status: response.status,
+            statusText: response.statusText,
+            labelerErrorMessage: responseData,
+          },
+          'Labeler service returned error response',
+        )
 
-    if (!response.ok) {
-      throw new Error(
-        `Labeler request failed: ${response.status} ${response.statusText}`,
-      )
+        throw new Error(
+          `Labeler request failed: ${response.status} ${response.statusText}`,
+        )
+      }
+    } catch (error) {
+      // Log network errors or other fetch failures
+      if (error.message?.includes('Labeler request failed:')) {
+        // Re-throw HTTP errors (already logged above)
+        throw error
+      } else {
+        // Log network/fetch errors with full context
+        log.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            labelId: pendingLabel.id,
+            requestUri: url,
+            requestBody: {
+              uri: pendingLabel.targetUri,
+              val: pendingLabel.labelValue,
+              neg: pendingLabel.negative ? 'true' : 'false',
+            },
+          },
+          'Network error calling labeler service',
+        )
+        throw error
+      }
     }
   }
 

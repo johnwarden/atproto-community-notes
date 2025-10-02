@@ -357,7 +357,12 @@ export default function (server: Server, ctx: AppContext) {
           ),
         )
 
-        await ctx.notesService.syncPendingLabels()
+        ctx.notesService.syncPendingLabels().catch((error) =>
+          log.error(
+            { error },
+            'Background label sync failed after proposal creation',
+          ),
+        )
 
         log.info(
           {
