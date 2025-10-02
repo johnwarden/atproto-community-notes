@@ -15,13 +15,7 @@ default:
 
 
 
-PORT := "8080"
-INTERNAL_API_PORT := "8081"
 
-# Set up internal endpoint for local development
-INTERNAL_ENDPOINT := "http://atproto-notes-api.internal:8081"
-
-HOSTNAME := "api.c10t.es"
 
 # Check environment variables (non-sensitive only)
 prod-env:
