@@ -56,11 +56,10 @@ test-score-endpoint:
 
 # Set score for a specific proposal (interactive)
 set-score PROPOSAL_URI STATUS SCORE:
-    @echo "📊 Setting score for proposal..."
-    @curl -s -X POST "{{INTERNAL_ENDPOINT}}/score" \
+    echo "📊 Setting score for proposal..."
+    curl -s -X POST "{{INTERNAL_ENDPOINT}}/score" \
         -H "Content-Type: application/json" \
-        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}' \
-        | jq .
+        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}'
 
 
 

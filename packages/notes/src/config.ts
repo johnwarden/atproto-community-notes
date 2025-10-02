@@ -32,7 +32,7 @@ export const readEnv = (): ServerEnvironment => {
     // repository account (for all records: proposals, votes, feed records)
     repoAccountDid: envStr('REPO_DID'),
     repoAccountPassword: envStr('REPO_PASSWORD'),
-    
+
     // AID generation salt (privacy protection)
     aidSalt: envStr('AID_SALT'),
 
@@ -57,7 +57,7 @@ export type ServerEnvironment = {
   // repository account (for all records: proposals, votes, feed records)
   repoAccountDid?: string
   repoAccountPassword?: string
-  
+
   // AID generation salt (privacy protection)
   aidSalt?: string
 
