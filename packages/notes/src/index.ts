@@ -476,19 +476,45 @@ export class NotesService {
   }
 
   /**
-   * Sync all pending labels (called synchronously after score)
+   * Sync all pending labels with comprehensive error handling
    */
   async syncPendingLabels(): Promise<void> {
-    const pendingLabels = await this.getPendingLabels()
+    try {
+      const pendingLabels = await this.getPendingLabels()
 
-    if (pendingLabels.length === 0) {
-      return
-    }
+      if (pendingLabels.length === 0) {
+        return
+      }
 
-    log.debug({ count: pendingLabels.length }, 'Syncing pending labels')
+      log.debug({ count: pendingLabels.length }, 'Syncing pending labels')
 
-    for (const pendingLabel of pendingLabels) {
-      await this.syncSingleLabel(pendingLabel)
+      for (const pendingLabel of pendingLabels) {
+        try {
+          await this.syncSingleLabel(pendingLabel)
+        } catch (error) {
+          log.error(
+            {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              labelId: pendingLabel.id,
+              targetUri: pendingLabel.targetUri,
+              labelValue: pendingLabel.labelValue,
+              negative: pendingLabel.negative,
+            },
+            'Failed to sync individual label - continuing with others',
+          )
+          // Continue with other labels instead of failing entirely
+        }
+      }
+    } catch (error) {
+      log.error(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        'Failed to sync pending labels',
+      )
+      // Don't throw - this should not fail the calling operation
     }
   }
 
@@ -552,10 +578,19 @@ export class NotesService {
 
     const url = `${labelerUrl}/label?uri=${encodeURIComponent(pendingLabel.targetUri)}&val=${encodeURIComponent(pendingLabel.labelValue)}&neg=${pendingLabel.negative ? 'true' : 'false'}`
     
+    const requestContext = {
+      labelId: pendingLabel.id,
+      requestUri: url,
+      requestBody: {
+        uri: pendingLabel.targetUri,
+        val: pendingLabel.labelValue,
+        neg: pendingLabel.negative ? 'true' : 'false',
+      },
+    }
+
     log.info(
       {
-        url,
-        labelId: pendingLabel.id,
+        ...requestContext,
         targetUri: pendingLabel.targetUri,
         labelValue: pendingLabel.labelValue,
         negative: pendingLabel.negative,
@@ -563,77 +598,61 @@ export class NotesService {
       'Calling external labeler service',
     )
 
+    let response: Response
     try {
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'atproto-community-notes/1.0',
         },
       })
-
-      let responseData
-      try {
-        responseData = await response.json()
-      } catch (jsonError) {
-        responseData = await response.text()
-      }
-
-      if (response.ok) {
-        log.info(
-          {
-            labelId: pendingLabel.id,
-            status: response.status,
-            statusText: response.statusText,
-            responseData,
-          },
-          'Labeler response received successfully',
-        )
-      } else {
-        // Log detailed error information including labeler service error message
-        log.error(
-          {
-            labelId: pendingLabel.id,
-            requestUri: url,
-            requestBody: {
-              uri: pendingLabel.targetUri,
-              val: pendingLabel.labelValue,
-              neg: pendingLabel.negative ? 'true' : 'false',
-            },
-            status: response.status,
-            statusText: response.statusText,
-            labelerErrorMessage: responseData,
-          },
-          'Labeler service returned error response',
-        )
-
-        throw new Error(
-          `Labeler request failed: ${response.status} ${response.statusText}`,
-        )
-      }
     } catch (error) {
-      // Log network errors or other fetch failures
-      if (error.message?.includes('Labeler request failed:')) {
-        // Re-throw HTTP errors (already logged above)
-        throw error
-      } else {
-        // Log network/fetch errors with full context
-        log.error(
-          {
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined,
-            labelId: pendingLabel.id,
-            requestUri: url,
-            requestBody: {
-              uri: pendingLabel.targetUri,
-              val: pendingLabel.labelValue,
-              neg: pendingLabel.negative ? 'true' : 'false',
-            },
-          },
-          'Network error calling labeler service',
-        )
-        throw error
-      }
+      // Network/fetch errors
+      log.error(
+        {
+          ...requestContext,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+        'Network error calling labeler service',
+      )
+      throw error
+    }
+
+    // Parse response body (try JSON first, fall back to text)
+    let responseData: any
+    try {
+      responseData = await response.json()
+    } catch {
+      responseData = await response.text()
+    }
+
+    if (response.ok) {
+      log.info(
+        {
+          labelId: pendingLabel.id,
+          status: response.status,
+          statusText: response.statusText,
+          responseData,
+        },
+        'Labeler response received successfully',
+      )
+    } else {
+      // HTTP error responses (4xx, 5xx)
+      log.error(
+        {
+          ...requestContext,
+          status: response.status,
+          statusText: response.statusText,
+          labelerErrorMessage: responseData,
+        },
+        'Labeler service returned error response',
+      )
+
+      throw new Error(
+        `Labeler request failed: ${response.status} ${response.statusText}`,
+      )
     }
   }
 

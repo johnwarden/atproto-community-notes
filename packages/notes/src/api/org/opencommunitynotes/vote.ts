@@ -151,8 +151,6 @@ export default function (server: Server, ctx: AppContext) {
           log.error({ error }, 'Background PDS sync failed after vote'),
         )
 
-        await ctx.notesService.syncPendingLabels()
-
         if (input.body.delete) {
           return {
             encoding: 'application/json',
