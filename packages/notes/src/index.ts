@@ -42,6 +42,7 @@ export class NotesService {
   private db?: Database
   private labelSyncInterval?: NodeJS.Timeout
   private labelSyncTimeout?: NodeJS.Timeout
+  private isClosing = false
 
   public repoAccount: RepoAccount
   public feedgenDocumentDid: string
@@ -485,6 +486,11 @@ export class NotesService {
    * @returns Number of labels successfully synced
    */
   async syncPendingLabels(): Promise<number> {
+    // Skip if service is closing
+    if (this.isClosing) {
+      return 0
+    }
+    
     try {
       const pendingLabels = await this.getPendingLabels()
 
@@ -550,6 +556,11 @@ export class NotesService {
    * Background sync wrapper that logs results
    */
   private async backgroundSyncPendingLabels(): Promise<void> {
+    // Skip if service is closing
+    if (this.isClosing) {
+      return
+    }
+    
     const syncedCount = await this.syncPendingLabels()
     if (syncedCount > 0) {
       log.info({ count: syncedCount }, 'Background synced labels')
@@ -695,6 +706,9 @@ export class NotesService {
   }
 
   async close(): Promise<void> {
+    // Set closing flag to prevent new background sync operations
+    this.isClosing = true
+    
     // Clean up background label sync
     if (this.labelSyncTimeout) {
       clearTimeout(this.labelSyncTimeout)
@@ -705,6 +719,9 @@ export class NotesService {
       this.labelSyncInterval = undefined
       log.info('Background label sync stopped')
     }
+    
+    // Give any running background sync a moment to complete
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     if (this.server) {
       await new Promise<void>((resolve, reject) => {
