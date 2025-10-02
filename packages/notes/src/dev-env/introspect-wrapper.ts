@@ -96,7 +96,9 @@ export class IntrospectWrapper {
 
   async close() {
     if (this.server) {
-      this.server.close()
+      return new Promise<void>((resolve) => {
+        this.server.close(() => resolve())
+      })
     }
   }
 }

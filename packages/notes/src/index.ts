@@ -41,6 +41,7 @@ export class NotesService {
   private internalServer?: HttpServer
   private db?: Database
   private labelSyncInterval?: NodeJS.Timeout
+  private labelSyncTimeout?: NodeJS.Timeout
 
   public repoAccount: RepoAccount
   public feedgenDocumentDid: string
@@ -533,7 +534,7 @@ export class NotesService {
    */
   private startBackgroundLabelSync(): void {
     // Initial sync after 30 seconds (let service stabilize)
-    setTimeout(() => {
+    this.labelSyncTimeout = setTimeout(() => {
       this.backgroundSyncPendingLabels()
     }, 30_000)
 
@@ -695,6 +696,10 @@ export class NotesService {
 
   async close(): Promise<void> {
     // Clean up background label sync
+    if (this.labelSyncTimeout) {
+      clearTimeout(this.labelSyncTimeout)
+      this.labelSyncTimeout = undefined
+    }
     if (this.labelSyncInterval) {
       clearInterval(this.labelSyncInterval)
       this.labelSyncInterval = undefined
