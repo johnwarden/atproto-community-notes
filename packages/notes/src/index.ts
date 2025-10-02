@@ -43,6 +43,7 @@ export class NotesService {
   private labelSyncInterval?: NodeJS.Timeout
   private labelSyncTimeout?: NodeJS.Timeout
   private isClosing = false
+  private ctx?: AppContext
 
   public repoAccount: RepoAccount
   public feedgenDocumentDid: string
@@ -113,6 +114,9 @@ export class NotesService {
       config: this.config,
       notesService: this, // Pass NotesService instance for label sync
     }
+
+    // Store context for cleanup
+    this.ctx = ctx
 
     // Add basic routes (root, health, robots.txt)
     const basicRouter = createBasicRouter(ctx)
@@ -709,6 +713,11 @@ export class NotesService {
     // Set closing flag to prevent new background sync operations
     this.isClosing = true
     
+    // Clean up cached PDS agent to prevent connection leaks
+    if (this.ctx) {
+      await this.cleanupPdsAgent(this.ctx)
+    }
+    
     // Clean up background label sync
     if (this.labelSyncTimeout) {
       clearTimeout(this.labelSyncTimeout)
@@ -741,6 +750,21 @@ export class NotesService {
     }
     if (this.db) {
       await this.db.close()
+    }
+  }
+
+  /**
+   * Clean up cached PDS agent to prevent connection leaks
+   */
+  private async cleanupPdsAgent(ctx: AppContext): Promise<void> {
+    if (ctx.pdsAgent?.agent) {
+      try {
+        await ctx.pdsAgent.agent.logout()
+        log.debug('Cached PDS agent logged out')
+      } catch (error) {
+        log.warn({ error }, 'Error during cached PDS agent cleanup')
+      }
+      ctx.pdsAgent = undefined
     }
   }
 }
