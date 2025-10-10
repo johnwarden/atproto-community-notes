@@ -5,9 +5,9 @@ import {
 import cors from 'cors'
 import express, { json } from 'express'
 import { AtpAgent } from '@atproto/api'
-import propose from './api/org/opencommunitynotes/propose'
 import getConfig from './api/org/opencommunitynotes/getConfig'
 import getProposals from './api/org/opencommunitynotes/getProposals'
+import propose from './api/org/opencommunitynotes/propose'
 import vote from './api/org/opencommunitynotes/vote'
 import { AuthService } from './auth'
 import { createRouter as createBasicRouter } from './basic-routes'
@@ -494,7 +494,7 @@ export class NotesService {
     if (this.isClosing) {
       return 0
     }
-    
+
     try {
       const pendingLabels = await this.getPendingLabels()
 
@@ -549,9 +549,12 @@ export class NotesService {
     }, 30_000)
 
     // Then every 5 minutes
-    this.labelSyncInterval = setInterval(() => {
-      this.backgroundSyncPendingLabels()
-    }, 5 * 60 * 1000) // 5 minutes
+    this.labelSyncInterval = setInterval(
+      () => {
+        this.backgroundSyncPendingLabels()
+      },
+      5 * 60 * 1000,
+    ) // 5 minutes
 
     log.info('Background label sync started (5 minute interval)')
   }
@@ -564,7 +567,7 @@ export class NotesService {
     if (this.isClosing) {
       return
     }
-    
+
     const syncedCount = await this.syncPendingLabels()
     if (syncedCount > 0) {
       log.info({ count: syncedCount }, 'Background synced labels')
@@ -599,8 +602,6 @@ export class NotesService {
    * Sync a single pending label with delete-on-success pattern
    */
   private async syncSingleLabel(pendingLabel: PendingLabel): Promise<void> {
-    let labelerSuccess = false
-
     // Sync to external labeler (simple HTTP GET)
     await this.callExternalLabeler(pendingLabel)
 
@@ -630,7 +631,7 @@ export class NotesService {
     }
 
     const url = `${labelerUrl}/label?uri=${encodeURIComponent(pendingLabel.targetUri)}&val=${encodeURIComponent(pendingLabel.labelValue)}&neg=${pendingLabel.negative ? 'true' : 'false'}`
-    
+
     const requestContext = {
       labelId: pendingLabel.id,
       requestUri: url,
@@ -656,7 +657,7 @@ export class NotesService {
       response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'User-Agent': 'atproto-community-notes/1.0',
         },
       })
@@ -712,12 +713,12 @@ export class NotesService {
   async close(): Promise<void> {
     // Set closing flag to prevent new background sync operations
     this.isClosing = true
-    
+
     // Clean up cached PDS agent to prevent connection leaks
     if (this.ctx) {
       await this.cleanupPdsAgent(this.ctx)
     }
-    
+
     // Clean up background label sync
     if (this.labelSyncTimeout) {
       clearTimeout(this.labelSyncTimeout)
@@ -728,9 +729,9 @@ export class NotesService {
       this.labelSyncInterval = undefined
       log.info('Background label sync stopped')
     }
-    
+
     // Give any running background sync a moment to complete
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
     if (this.server) {
       await new Promise<void>((resolve, reject) => {

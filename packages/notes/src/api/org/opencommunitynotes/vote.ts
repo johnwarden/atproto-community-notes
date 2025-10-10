@@ -130,8 +130,8 @@ export default function (server: Server, ctx: AppContext) {
           } as HandlerError
         }
 
-        // Use unified vote function for all operations
-        const result = await vote(ctx, {
+        // Use unified saveVote function for all operations
+        const result = await saveVote(ctx, {
           raterAid,
           proposalUri: input.body.uri,
           val: input.body.delete ? undefined : input.body.val,
@@ -200,7 +200,7 @@ export default function (server: Server, ctx: AppContext) {
 /**
  * Insert/delete vote record and sync to PDS (if enabled)
  */
-export async function vote(
+export async function saveVote(
   ctx: AppContext,
   params: {
     raterAid: string

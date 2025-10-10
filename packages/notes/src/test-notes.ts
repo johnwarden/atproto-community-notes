@@ -50,7 +50,7 @@ export class TestNotes {
 
     if (config.plcUrl && config.pdsUrl) {
       // Create repository account (for both feed records and notes records)
-      const repoKeypair = await Secp256k1Keypair.create({ exportable: true })
+      // const repoKeypair = await Secp256k1Keypair.create({ exportable: true })
       const repoTokens = await createRepoAccount(
         config.pdsUrl,
         'notes-repo.test',

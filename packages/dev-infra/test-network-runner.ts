@@ -14,8 +14,8 @@ import getPort from 'get-port'
 import { TestNetworkWrapper } from '../notes/src/dev-env/test-network-wrapper'
 import {
   TestUsers,
-  createTestUsers,
   createTestScoredProposals,
+  createTestUsers,
 } from '../notes/tests/test-utils'
 
 let network: TestNetworkWrapper | null = null

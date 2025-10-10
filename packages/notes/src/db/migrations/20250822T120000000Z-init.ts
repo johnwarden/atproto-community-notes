@@ -271,7 +271,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
   // Drop triggers first
-  await sql`DROP TRIGGER IF EXISTS create_proposed_label_on_proposal`.execute(db)
+  await sql`DROP TRIGGER IF EXISTS create_proposed_label_on_proposal`.execute(
+    db,
+  )
   await sql`DROP TRIGGER IF EXISTS create_final_labels_on_score`.execute(db)
   await sql`DROP TRIGGER IF EXISTS afterInsertOnScoreEvent`.execute(db)
 

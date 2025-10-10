@@ -322,9 +322,8 @@ describe('getProposals', () => {
       'annotation',
     )
     const needsContextProposals =
-      needsContextData.proposals?.filter(
-        (p: any) => p.val === 'annotation',
-      ) || []
+      needsContextData.proposals?.filter((p: any) => p.val === 'annotation') ||
+      []
     const needsContextCount = needsContextProposals.length
 
     assert.ok(

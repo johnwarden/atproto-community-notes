@@ -370,20 +370,16 @@ export class TestNetworkWrapper {
   }
 
   async close() {
-    // Close our services FIRST before closing the underlying network
-    // This prevents our services from trying to access closed network services
-    if (this.introspectWrapper) {
-      await this.introspectWrapper.close()
+    await this.network.close()
+    if (this.labeler) {
+      await this.labeler.close()
     }
     if (this.notes) {
       await this.notes.close()
     }
-    if (this.labeler) {
-      await this.labeler.close()
+    if (this.introspectWrapper) {
+      await this.introspectWrapper.close()
     }
-    
-    // Close the underlying network LAST
-    await this.network.close()
   }
 
   // Proxy common properties for convenience

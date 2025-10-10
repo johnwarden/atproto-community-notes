@@ -1,9 +1,8 @@
+import { AtpAgent } from '@atproto/api'
 import { NotesService } from '.'
 import { AuthService } from './auth'
 import { NotesServiceConfig, RepoAccount } from './config'
 import { Database } from './db'
-
-import { AtpAgent } from '@atproto/api'
 
 export interface AppContext {
   auth: AuthService

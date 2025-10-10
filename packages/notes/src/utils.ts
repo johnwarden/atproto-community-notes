@@ -149,15 +149,17 @@ export async function getOrCreatePdsAgent(ctx: AppContext): Promise<{
   serviceRepoId: string
 }> {
   // Check if we have a cached agent that's still valid (< 30 minutes old)
-  if (ctx.pdsAgent && 
-      Date.now() - ctx.pdsAgent.lastRefresh.getTime() < 30 * 60 * 1000) {
+  if (
+    ctx.pdsAgent &&
+    Date.now() - ctx.pdsAgent.lastRefresh.getTime() < 30 * 60 * 1000
+  ) {
     try {
       // Quick session validation
       await ctx.pdsAgent.agent.com.atproto.server.getSession()
       log.debug('Using cached PDS agent')
       return {
         agent: ctx.pdsAgent.agent,
-        serviceRepoId: ctx.pdsAgent.serviceRepoId
+        serviceRepoId: ctx.pdsAgent.serviceRepoId,
       }
     } catch (err) {
       // Session invalid, will create new one below
@@ -167,13 +169,13 @@ export async function getOrCreatePdsAgent(ctx: AppContext): Promise<{
 
   // Create new authenticated agent
   const result = await createAuthenticatedPdsAgent(ctx)
-  
+
   // Cache it
   ctx.pdsAgent = {
     ...result,
-    lastRefresh: new Date()
+    lastRefresh: new Date(),
   }
-  
+
   log.debug('Created and cached new PDS agent')
   return result
 }

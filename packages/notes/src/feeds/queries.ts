@@ -22,11 +22,14 @@ export async function getNewFeed(
     const results = await ctx.notesDb.db
       .selectFrom('record as r')
       .leftJoin('score as s', 's.proposalUri', 'r.uri')
-      .select([sql`json_extract(r.record, '$.uri')`.as('targetUri'), 'r.indexedAt'])
+      .select([
+        sql`json_extract(r.record, '$.uri')`.as('targetUri'),
+        'r.indexedAt',
+      ])
       .where('r.collection', '=', 'social.pmsky.proposal')
       .where(
         // Include proposals with no score OR status = 'needs_more_ratings'
-        sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+        sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`,
       )
       .where('r.indexedAt', '<', new Date(offsetTime).toISOString())
       .orderBy('r.indexedAt', 'desc') // Sort by proposal creation time (chronological)
@@ -80,15 +83,21 @@ export async function getNeedsYourHelpFeed(
         .select([
           sql`json_extract(r.record, '$.uri')`.as('targetUri'),
           'r.uri as proposalUri',
-          sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`.as('scoreEventTime'),
+          sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`.as(
+            'scoreEventTime',
+          ),
           sql`COALESCE(s.score, 0.0)`.as('score'),
         ])
         .where('r.collection', '=', 'social.pmsky.proposal')
         .where(
           // Include proposals with no score OR status = 'needs_more_ratings'
-          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`,
         )
-        .where(sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`, '<', offsetTime)
+        .where(
+          sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`,
+          '<',
+          offsetTime,
+        )
         .execute()
 
       // Step 2: Get all proposals this user has rated
@@ -104,7 +113,10 @@ export async function getNeedsYourHelpFeed(
       )
 
       // Step 3: Filter to posts that have at least one unrated proposal and track highest score
-      const postsWithUnratedNotes = new Map<string, { scoreEventTime: number; score: number }>()
+      const postsWithUnratedNotes = new Map<
+        string,
+        { scoreEventTime: number; score: number }
+      >()
 
       for (const score of postsWithScores) {
         if (!ratedProposalUris.has(score.proposalUri as string)) {
@@ -120,10 +132,10 @@ export async function getNeedsYourHelpFeed(
 
       // Step 4: Convert to feed format and sort by score descending
       const results = Array.from(postsWithUnratedNotes.entries())
-        .map(([targetUri, { scoreEventTime, score }]) => ({ 
-          targetUri, 
+        .map(([targetUri, { scoreEventTime, score }]) => ({
+          targetUri,
           scoreEventTime,
-          score 
+          score,
         }))
         .sort((a, b) => b.score - a.score) // Sort by score descending
         .slice(0, validatedLimit + 1)
@@ -150,15 +162,21 @@ export async function getNeedsYourHelpFeed(
         .leftJoin('score as s', 's.proposalUri', 'r.uri')
         .select([
           sql`json_extract(r.record, '$.uri')`.as('targetUri'),
-          sql<number>`MAX(COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000))`.as('scoreEventTime'),
+          sql<number>`MAX(COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000))`.as(
+            'scoreEventTime',
+          ),
           sql<number>`MAX(COALESCE(s.score, 0.0))`.as('score'),
         ])
         .where('r.collection', '=', 'social.pmsky.proposal')
         .where(
           // Include proposals with no score OR status = 'needs_more_ratings'
-          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`
+          sql`(s.status IS NULL OR s.status = 'needs_more_ratings')`,
         )
-        .where(sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`, '<', offsetTime)
+        .where(
+          sql`COALESCE(s.scoreEventTime, strftime('%s', r.indexedAt) * 1000)`,
+          '<',
+          offsetTime,
+        )
         .groupBy(sql`json_extract(r.record, '$.uri')`)
         .orderBy('score', 'desc') // Sort by highest score descending
         .limit(validatedLimit + 1)

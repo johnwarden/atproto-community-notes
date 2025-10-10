@@ -1,6 +1,5 @@
 import path from 'node:path'
 import getPort from 'get-port'
-import { Kysely, PostgresDialect, sql } from 'kysely'
 import { AtpAgent } from '@atproto/api'
 import { TestNetworkWrapper } from '../src/dev-env/test-network-wrapper'
 export interface TestUser {

@@ -20,7 +20,7 @@ import {
   normalizeAtUri,
 } from '../../../utils'
 import { resHeaders } from '../../util'
-import { vote } from './vote'
+import { saveVote } from './vote'
 
 // Helper function to validate AT Protocol target URIs
 async function validateTargetUri(
@@ -36,8 +36,8 @@ async function validateTargetUri(
   try {
     // Parse the AT Protocol URI
     const atUri = new AtUri(targetUri)
-    const isDevelopment = ctx.pdsUrl.includes('localhost') || 
-                         process.env.NODE_ENV === 'development'
+    const isDevelopment =
+      ctx.pdsUrl.includes('localhost') || process.env.NODE_ENV === 'development'
 
     // Try PDS validation first (PDS is always configured)
     try {
@@ -336,7 +336,7 @@ export default function (server: Server, ctx: AppContext) {
         }
 
         // Create auto-rating (author rates their own proposal as helpful)
-        const autoRatingResult = await vote(ctx, {
+        const autoRatingResult = await saveVote(ctx, {
           raterAid: creatorAid,
           proposalUri: putResult.uri,
           val: 1, // Helpful

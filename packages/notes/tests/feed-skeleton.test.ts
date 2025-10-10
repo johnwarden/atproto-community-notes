@@ -143,9 +143,9 @@ describe('Feed Skeleton Test', () => {
 
     assert.ok(newFeedResponse.ok, 'New feed request should succeed')
     const newFeedData = await newFeedResponse.json()
-    
-    const newFeedContainsPost = newFeedData.feed.some((item: any) => 
-      item.post === unscoredTestPostUri
+
+    const newFeedContainsPost = newFeedData.feed.some(
+      (item: any) => item.post === unscoredTestPostUri,
     )
 
     assert.ok(
@@ -162,11 +162,14 @@ describe('Feed Skeleton Test', () => {
       `${network.notes?.url}/xrpc/app.bsky.feed.getFeedSkeleton?feed=${encodedNeedsHelpFeedUri}`,
     )
 
-    assert.ok(needsHelpFeedResponse.ok, 'Needs your help feed request should succeed')
+    assert.ok(
+      needsHelpFeedResponse.ok,
+      'Needs your help feed request should succeed',
+    )
     const needsHelpFeedData = await needsHelpFeedResponse.json()
-    
-    const needsHelpFeedContainsPost = needsHelpFeedData.feed.some((item: any) => 
-      item.post === unscoredTestPostUri
+
+    const needsHelpFeedContainsPost = needsHelpFeedData.feed.some(
+      (item: any) => item.post === unscoredTestPostUri,
     )
 
     assert.ok(
