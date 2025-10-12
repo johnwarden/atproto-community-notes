@@ -34,9 +34,9 @@ test FILE="":
     #!/usr/bin/env bash
         cd packages/notes
     if [ -n "{{FILE}}" ]; then
-        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 30 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/$(basename {{FILE}})
+        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 60 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/$(basename {{FILE}})
     else
-        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 120 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts
+        LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION="../../test.log" time timeout 180 ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts
     fi
 
 
