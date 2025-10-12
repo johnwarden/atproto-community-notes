@@ -323,6 +323,48 @@ describe('Notes API', () => {
     )
   })
 
+  test('📏 Test 5.1: Note Length Validation', async () => {
+    // Test that note length validation is enforced (over limit should fail)
+    // Use HTTP URI to avoid duplicate proposal conflicts
+    const lengthTestUri = `https://example.com/length-test-${Date.now()}`
+    const overLimitText = 'a'.repeat(279) + ' https://example.com' // 281 chars: exceeds 280 limit
+    const overLimitResponse = await fetch(
+      `${network.notes?.url}/xrpc/org.opencommunitynotes.propose`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${users.alice.agent.session?.accessJwt}`,
+        },
+        body: JSON.stringify({
+          typ: 'label',
+          uri: lengthTestUri,
+          val: 'annotation',
+          note: overLimitText,
+        }),
+      },
+    )
+
+    assert.ok(!overLimitResponse.ok, 'Note over 280 character limit should be rejected')
+    
+    const overLimitData = await overLimitResponse.json().catch(() => ({}))
+    assert.strictEqual(
+      overLimitData.error,
+      'InvalidTarget',
+      `Over-limit note rejected - Error must be "InvalidTarget". Got: ${overLimitData.error}`,
+    )
+    
+    assert.ok(
+      overLimitData.message?.includes('280 characters'),
+      `Error message should mention 280 character limit. Got: ${overLimitData.message}`,
+    )
+    
+    assert.ok(
+      overLimitData.message?.includes('counting URLs as 1 character'),
+      `Error message should mention URL counting. Got: ${overLimitData.message}`,
+    )
+  })
+
   test('🌐 Test 6: HTTP URI Support', async () => {
     // Test non-AT Protocol URI support
     const httpUri = `https://example.com/test-${Date.now()}`

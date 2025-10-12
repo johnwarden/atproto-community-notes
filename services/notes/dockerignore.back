@@ -1,0 +1,26 @@
+# ============================================================================
+# Docker Build Context Optimization for services/notes/
+# ============================================================================
+# Build context: services/notes/ directory
+# Dockerfile references ../../ to access project root
+
+# Exclude local development files in services/notes/
+node_modules/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.env*
+
+# Exclude backup files
+Dockerfile.*
+*.backup
+*.original
+
+# Keep essential service files
+!Dockerfile
+!index.js
+!litefs.yml
+!package.json
+!fly.toml

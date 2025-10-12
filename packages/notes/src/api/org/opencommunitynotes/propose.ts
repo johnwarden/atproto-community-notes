@@ -19,6 +19,7 @@ import {
   getOrCreatePdsAgent,
   normalizeAtUri,
 } from '../../../utils'
+import { validateNoteText } from '../../../validation/note-length'
 import { resHeaders } from '../../util'
 import { saveVote } from './vote'
 
@@ -286,11 +287,13 @@ export default function (server: Server, ctx: AppContext) {
           } as HandlerError
         }
 
-        if (input.body.note.length > 500) {
+        try {
+          validateNoteText(input.body.note)
+        } catch (error) {
           return {
             status: 400,
             error: 'InvalidTarget',
-            message: 'Note text cannot exceed 500 characters',
+            message: error instanceof Error ? error.message : 'Note text validation failed',
           } as HandlerError
         }
 
