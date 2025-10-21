@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@atproto/crypto": "^0.4.0",
-    "@atproto/dev-env": "^0.3.158",
+    "@atproto/dev-env": "^0.3.183",
     "@atproto/lex-cli": "0.9.4",
     "@did-plc/lib": "^0.0.4",
     "@types/better-sqlite3": "^7.6.13",
