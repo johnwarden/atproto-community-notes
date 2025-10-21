@@ -61,7 +61,7 @@
     "@types/node": "^20.0.0",
     "@types/pg": "^8.6.6",
     "dotenv": "^16.0.0",
-    "eslint-plugin-unused-imports": "^3.2.0",
+    "eslint-plugin-unused-imports": "^4.3.0",
     "get-port": "^6.1.2",
     "tsx": "^4.20.5"
   }
