@@ -1,0 +1,122 @@
+name: Deploy Notes Service to Fly.io
+
+on:
+  push:
+    branches: [master]
+
+# Prevent concurrent deployments
+concurrency:
+  group: notes-production-deployment
+  cancel-in-progress: false
+
+jobs:
+  pre-deployment:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check and build
+        run: pnpm build
+
+      - name: Run tests
+        run: |
+          cd packages/notes
+          LOG_LEVEL=debug LOG_ENABLED=true LOG_DESTINATION=../../test.log ../dev-infra/with-test-redis-and-db.sh node --test --import=tsx tests/*.test.ts
+
+  deploy:
+    name: Deploy to Fly.io
+    needs: pre-deployment
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Fly.io CLI
+        run: |
+          curl -L https://fly.io/install.sh | sh
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
+
+      - name: Load production environment variables
+        run: |
+          # Export all variables from production.env
+          set -a
+          source production.env
+          set +a
+          # Write to GITHUB_ENV for subsequent steps
+          env | grep -E '^(NODE_ENV|LOG_|PDS_URL|LABELER_|DB_PATH|REPO_DID|FEEDGEN_|HOSTNAME|PORT|INTERNAL_API_PORT)=' >> $GITHUB_ENV
+
+      - name: Deploy to Fly.io
+        run: |
+          # Save LOG_LEVEL before unsetting (to pass to app but not flyctl)
+          APP_LOG_LEVEL="${LOG_LEVEL}"
+          unset LOG_LEVEL
+          
+          fly deploy \
+            --config fly.toml \
+            --env NODE_ENV="${NODE_ENV}" \
+            --env LOG_ENABLED="${LOG_ENABLED}" \
+            --env LOG_LEVEL="${APP_LOG_LEVEL}" \
+            --env LOG_DESTINATION="${LOG_DESTINATION}" \
+            --env PDS_URL="${PDS_URL}" \
+            --env LABELER_URL="${LABELER_URL}" \
+            --env DB_PATH="${DB_PATH}" \
+            --env REPO_DID="${REPO_DID}" \
+            --env FEEDGEN_DOCUMENT_DID="${FEEDGEN_DOCUMENT_DID}" \
+            --env LABELER_DID="${LABELER_DID}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  post-deployment:
+    name: Post-Deployment Validation
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Health check
+        run: |
+          echo "🔍 Checking service health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://atproto-notes-api.fly.dev/health)
+          if [ "$response" != "200" ]; then
+            echo "❌ Health check failed with status code: $response"
+            exit 1
+          fi
+          echo "✅ Health check passed (HTTP $response)"
+
+      - name: Deployment summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ Deployment completed successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "🔗 Service URL: https://atproto-notes-api.fly.dev"
+          echo "🔗 Monitoring: https://fly.io/apps/atproto-notes-api/monitoring"

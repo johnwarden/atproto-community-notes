@@ -49,7 +49,11 @@ get-auth-token:
 
 get-proposals URI="":
     #!/usr/bin/env bash
-    NOTES_RESPONSE=$(curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris={{URI}}" -H "Authorization: Bearer $TOKEN")
+    if [ -n "$TOKEN" ]; then
+        NOTES_RESPONSE=$(curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris={{URI}}" -H "Authorization: Bearer $TOKEN")
+    else
+        NOTES_RESPONSE=$(curl -s "http://localhost:2595/xrpc/org.opencommunitynotes.getProposals?uris={{URI}}")
+    fi
     NOTES_COUNT=$(echo "$NOTES_RESPONSE" | jq '.notes | length')
     GET_NOTES_ERROR=$(echo "$NOTES_RESPONSE" | jq -r '.error')
     echo $NOTES_RESPONSE | jq
