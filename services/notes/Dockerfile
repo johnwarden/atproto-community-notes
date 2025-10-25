@@ -30,6 +30,7 @@ COPY ./packages/notes/tsconfig*.json ./packages/notes/
 
 # Layer 7: Source code (changes frequently - comes LAST for optimal caching)
 COPY ./packages/notes/src ./packages/notes/src
+COPY ./packages/notes/assets ./packages/notes/assets
 COPY ./services/notes ./services/notes
 
 # Layer 8: Build application (only runs when source code or config changes)
