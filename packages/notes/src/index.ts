@@ -252,18 +252,18 @@ export class NotesService {
       const feedGenerators = [
         {
           rkey: 'new',
-          displayName: 'CN: New',
-          description: 'Posts with the newest community notes',
+          displayName: 'New Community Notes',
+          description: 'Posts with the newest Community Notes',
         },
         {
           rkey: 'needs_your_help',
-          displayName: 'CN: Needs Your Help',
-          description: 'Posts that need more ratings on their community notes',
+          displayName: 'Needs More Ratings',
+          description: 'Posts with Community Notes that need more ratings',
         },
         {
           rkey: 'rated_helpful',
-          displayName: 'CN: Rated Helpful',
-          description: 'Posts with community notes rated as helpful',
+          displayName: 'Helpful Community Notes',
+          description: 'Posts with Community Notes rated as helpful',
         },
       ]
 
