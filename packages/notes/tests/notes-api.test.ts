@@ -26,27 +26,35 @@ describe('Notes API', () => {
     )
   })
 
-  test('🔐 Test 1: Authentication Required', async () => {
-    // Test that unauthenticated requests are rejected
+  test('🔐 Test 1: Invalid Authentication Fails Hard', async () => {
+    // Test that invalid bearer tokens are rejected (fail hard)
     const testUri = 'at://did:plc:test/app.bsky.feed.post/test'
     const encodedUri = encodeURIComponent(testUri)
 
-    assert.ok(
-      testUri && testUri.length > 0,
-      `Test post URI set - REAL_POST_URI must be non-empty. Got: ${testUri}`,
-    )
-
-    const unauthResponse = await fetch(
+    const invalidAuthResponse = await fetch(
       `${network.notes?.url}/xrpc/org.opencommunitynotes.getProposals?uris=${encodedUri}`,
+      {
+        headers: {
+          Authorization: 'Bearer invalid-token-12345',
+        },
+      },
     )
 
-    assert.ok(!unauthResponse.ok, 'Unauthenticated requests should be rejected')
-
-    const unauthData = await unauthResponse.json().catch(() => ({}))
+    assert.ok(
+      !invalidAuthResponse.ok,
+      'Invalid authentication should be rejected',
+    )
     assert.strictEqual(
-      unauthData.error,
+      invalidAuthResponse.status,
+      401,
+      'Invalid auth should return 401',
+    )
+
+    const errorData = await invalidAuthResponse.json().catch(() => ({}))
+    assert.strictEqual(
+      errorData.error,
       'AuthenticationRequired',
-      `Unauthenticated requests rejected - Error must be "AuthenticationRequired". Got: ${unauthData.error}`,
+      'Error should be AuthenticationRequired',
     )
   })
 

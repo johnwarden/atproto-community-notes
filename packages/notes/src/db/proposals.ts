@@ -6,7 +6,7 @@ import { ProposalView } from '../views/types'
 
 export interface GetHydratedProposalsParams {
   targetUri: string
-  viewerAid: string
+  viewerAid?: string
   status?: string
   label?: string
   limit?: number
@@ -25,7 +25,7 @@ export async function getHydratedProposals(
   if (!ctx.db) {
     const error = new Error('Database not available')
     log.error(
-      { targetUri, viewerAid },
+      { targetUri, hasViewer: !!viewerAid },
       'Database not available for getHydratedProposals',
     )
     throw error
@@ -35,7 +35,7 @@ export async function getHydratedProposals(
     log.debug(
       {
         targetUri,
-        viewerAid,
+        hasViewer: !!viewerAid,
         status,
         label,
         limit,
@@ -44,7 +44,8 @@ export async function getHydratedProposals(
     )
 
     // Build the single optimized query with all JOINs and filters
-    let query = ctx.db.db
+    // Always do the leftJoin to keep types consistent, but only match when viewerAid is provided
+    const query = ctx.db.db
       .selectFrom('record')
       .leftJoin('score', 'score.proposalUri', 'record.uri')
       .leftJoin('record as user_vote', (join) =>
@@ -55,7 +56,11 @@ export async function getHydratedProposals(
             '=',
             sql.ref('record.uri'),
           )
-          .on(sql`json_extract(user_vote.record, '$.aid')`, '=', viewerAid),
+          .on(
+            sql`json_extract(user_vote.record, '$.aid')`,
+            '=',
+            viewerAid || '',
+          ),
       )
       .select([
         // Proposal fields
@@ -66,7 +71,7 @@ export async function getHydratedProposals(
         // Score fields
         'score.status',
         'score.score',
-        // User rating fields
+        // User rating fields (will be null if no viewer)
         'user_vote.record as userRatingRecord',
         'user_vote.indexedAt as userRatingCreatedAt',
       ])
@@ -74,36 +79,47 @@ export async function getHydratedProposals(
       .where(sql`json_extract(record.record, '$.uri')`, '=', targetUri)
 
     // Apply status filter if provided
+    let finalQuery = query
     if (status) {
       if (status === 'needs_more_ratings') {
         // For needs_more_ratings, include proposals with no score record OR status = 'needs_more_ratings'
-        query = query.where(
+        finalQuery = finalQuery.where(
           sql`(score.status IS NULL OR score.status = ${status})`,
         )
       } else {
         // For other statuses, require exact match
-        query = query.where('score.status', '=', status as any)
+        finalQuery = finalQuery.where('score.status', '=', status as any)
       }
     }
 
     // Apply label filter if provided
     if (label) {
-      query = query.where(sql`json_extract(record.record, '$.val')`, '=', label)
+      finalQuery = finalQuery.where(
+        sql`json_extract(record.record, '$.val')`,
+        '=',
+        label,
+      )
     }
 
-    // Apply ordering: unrated proposals first, then by score descending
-    query = query
-      .orderBy(sql`CASE WHEN user_vote.uri IS NULL THEN 0 ELSE 1 END`)
+    // Apply ordering
+    if (viewerAid) {
+      // For authenticated viewers: unrated proposals first, then by score descending
+      finalQuery = finalQuery.orderBy(
+        sql`CASE WHEN user_vote.uri IS NULL THEN 0 ELSE 1 END`,
+      )
+    }
+    // Always order by score and date for consistent ordering
+    finalQuery = finalQuery
       .orderBy(sql`COALESCE(score.score, 0)`, 'desc')
       .orderBy('record.indexedAt', 'desc') // Tie-breaker for consistent ordering
       .limit(limit)
 
-    const results = await query.execute()
+    const results = await finalQuery.execute()
 
     log.debug(
       {
         targetUri,
-        viewerAid,
+        hasViewer: !!viewerAid,
         resultCount: results.length,
         hasStatus: !!status,
         hasLabel: !!label,
@@ -156,7 +172,7 @@ export async function getHydratedProposals(
               log.warn(
                 {
                   proposalUri: row.uri,
-                  viewerAid,
+                  hasViewer: !!viewerAid,
                   error:
                     ratingParseError instanceof Error
                       ? ratingParseError.message
@@ -173,7 +189,7 @@ export async function getHydratedProposals(
           log.error(
             {
               proposalUri: row.uri,
-              viewerAid,
+              hasViewer: !!viewerAid,
               error:
                 recordParseError instanceof Error
                   ? recordParseError.message
@@ -190,7 +206,7 @@ export async function getHydratedProposals(
     log.info(
       {
         targetUri,
-        viewerAid,
+        hasViewer: !!viewerAid,
         requestedCount: limit,
         returnedCount: proposals.length,
         filteredCount: results.length - proposals.length,
@@ -207,7 +223,7 @@ export async function getHydratedProposals(
     log.error(
       {
         targetUri,
-        viewerAid,
+        hasViewer: !!viewerAid,
         status,
         label,
         limit,

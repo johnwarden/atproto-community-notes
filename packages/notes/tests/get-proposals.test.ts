@@ -366,6 +366,39 @@ describe('getProposals', () => {
     }
   })
 
+  test('🔓 Test 8: Unauthenticated Access', async () => {
+    // Test that getProposals works without authentication
+    const unauthData = await getProposals(network, null, alicePostUri)
+
+    const unauthCount = unauthData.proposals?.length || 0
+
+    assert.ok(
+      unauthCount >= 2,
+      `Unauthenticated access works - Count >= 2. Got: ${unauthCount}`,
+    )
+
+    // Verify no viewer rating information is present for unauthenticated requests
+    for (const proposal of unauthData.proposals) {
+      assert.strictEqual(
+        proposal.viewer,
+        undefined,
+        'Unauthenticated requests should not have viewer rating info',
+      )
+    }
+
+    // Verify proposals are ordered by score (highest first) for unauthenticated users
+    const firstProposal = unauthData.proposals[0]
+    const secondProposal = unauthData.proposals[1]
+
+    const firstScore = firstProposal.score || 0
+    const secondScore = secondProposal.score || 0
+
+    assert.ok(
+      firstScore >= secondScore,
+      `Unauthenticated proposals ordered by score - First (${firstScore}) >= Second (${secondScore})`,
+    )
+  })
+
   test('cleanup', async () => {
     try {
       await network?.close()

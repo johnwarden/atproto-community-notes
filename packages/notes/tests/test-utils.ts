@@ -255,7 +255,7 @@ export async function setProposalScore(
  */
 export async function getProposals(
   network: TestNetworkWrapper,
-  user: TestUser,
+  user: TestUser | null,
   uri: string,
   status?: string,
   label?: string,
@@ -264,12 +264,15 @@ export async function getProposals(
   const statusParam = status ? `&status=${status}` : ''
   const labelParam = label ? `&label=${label}` : ''
 
+  const headers: Record<string, string> = {}
+  if (user?.agent?.session?.accessJwt) {
+    headers['Authorization'] = `Bearer ${user.agent.session.accessJwt}`
+  }
+
   const response = await fetch(
     `${network.notes?.url}/xrpc/org.opencommunitynotes.getProposals?uris=${encodedUri}${statusParam}${labelParam}`,
     {
-      headers: {
-        Authorization: `Bearer ${user.agent.session?.accessJwt}`,
-      },
+      headers,
     },
   )
 

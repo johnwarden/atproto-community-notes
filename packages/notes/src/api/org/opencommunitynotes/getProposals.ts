@@ -24,25 +24,26 @@ export default function (server: Server, ctx: AppContext) {
       // If not provided, we'll use undefined to allow random count generation
       const explicitLimit = req.url?.includes('limit=') ? limit : undefined
 
-      // Require authentication
+      // Optional authentication - check for bearer token if present
       const authHeader = req.headers?.authorization
-      if (!authHeader) {
-        throw new AuthRequiredError('Authorization header is required')
+      let viewerAid: string | undefined
+
+      if (authHeader) {
+        const authResult = await ctx.auth.verifyBearerToken(authHeader)
+        if (authResult.success && authResult.did) {
+          // Validate repository account configuration
+          if (!ctx.repoAccount?.did || !ctx.aidSalt) {
+            throw new AuthRequiredError('Notes service configuration error')
+          }
+
+          viewerAid = generateAid(authResult.did, ctx.aidSalt)
+        } else {
+          // Authorization attempted but failed - fail hard
+          throw new AuthRequiredError(
+            authResult.error || 'Invalid or expired token',
+          )
+        }
       }
-
-      const authResult = await ctx.auth.verifyBearerToken(authHeader)
-      if (!authResult.success || !authResult.did) {
-        throw new AuthRequiredError(authResult.error || 'Invalid token')
-      }
-
-      const viewerDid = authResult.did
-
-      // Validate repository account configuration
-      if (!ctx.repoAccount?.did || !ctx.aidSalt) {
-        throw new AuthRequiredError('Notes service configuration error')
-      }
-
-      const viewerAid = generateAid(viewerDid, ctx.aidSalt)
 
       log.info(
         {
@@ -51,10 +52,9 @@ export default function (server: Server, ctx: AppContext) {
           limit,
           status,
           label,
-          viewerDid,
           viewerAid,
         },
-        'Community Notes: getProposals request received (authenticated)',
+        'Community Notes: getProposals request received',
       )
 
       // Process each URI to get proposals
@@ -112,7 +112,6 @@ export default function (server: Server, ctx: AppContext) {
           totalProposals: allProposals.length,
           status,
           label,
-          viewerDid,
           viewerAid,
         },
         'Community Notes: getProposals response prepared',

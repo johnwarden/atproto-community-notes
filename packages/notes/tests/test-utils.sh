@@ -344,7 +344,13 @@ get_proposals_for_subject() {
         url="${url}&label=${label_filter}"
     fi
 
-    local proposals_response=$(curl -s -w "\n%{http_code}" "$url" -H "Authorization: Bearer $token")
+    # Optional authentication - only add header if token is provided
+    local proposals_response
+    if [ -n "$token" ]; then
+        proposals_response=$(curl -s -w "\n%{http_code}" "$url" -H "Authorization: Bearer $token")
+    else
+        proposals_response=$(curl -s -w "\n%{http_code}" "$url")
+    fi
 
     # Split response and HTTP code
     local http_code=$(echo "$proposals_response" | tail -n1)

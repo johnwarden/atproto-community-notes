@@ -166,4 +166,28 @@ test_result "Label filter 'nonexistent' returns 0 proposals" "$([ "$NONEXISTENT_
 FILTERED_FIRST_URI=$(get_proposals_for_subject "$BOB_TOKEN" "$ALICE_POST_URI" "" "annotation" | jq -r '.proposals[0].uri')
 test_result "Label filtering preserves ordering" "$([ "$FILTERED_FIRST_URI" = "$ALICE_PROPOSAL_URI" ] && echo true || echo false)"
 
+# Test 8: Unauthenticated Access
+print_test_section "🔓 Test 8: Unauthenticated Access"
+
+# Call getProposals without authentication (empty token)
+UNAUTH_RESPONSE=$(get_proposals_for_subject "" "$ALICE_POST_URI")
+UNAUTH_COUNT=$(echo "$UNAUTH_RESPONSE" | jq '.proposals | length')
+
+test_result "Unauthenticated access works" "$([ "$UNAUTH_COUNT" -ge "2" ] && echo true || echo false)"
+
+# Verify no viewer rating information is present
+UNAUTH_FIRST_HAS_VIEWER=$(echo "$UNAUTH_RESPONSE" | jq '.proposals[0].viewer != null')
+UNAUTH_SECOND_HAS_VIEWER=$(echo "$UNAUTH_RESPONSE" | jq '.proposals[1].viewer != null')
+
+test_result "First proposal has no viewer info" "$([ "$UNAUTH_FIRST_HAS_VIEWER" = "false" ] && echo true || echo false)"
+test_result "Second proposal has no viewer info" "$([ "$UNAUTH_SECOND_HAS_VIEWER" = "false" ] && echo true || echo false)"
+
+# Verify proposals are ordered by score (highest first)
+UNAUTH_FIRST_SCORE=$(echo "$UNAUTH_RESPONSE" | jq -r '.proposals[0].score // 0')
+UNAUTH_SECOND_SCORE=$(echo "$UNAUTH_RESPONSE" | jq -r '.proposals[1].score // 0')
+
+# Compare scores (using awk for floating point comparison)
+SCORE_ORDERED=$(echo "$UNAUTH_FIRST_SCORE $UNAUTH_SECOND_SCORE" | awk '{print ($1 >= $2) ? "true" : "false"}')
+test_result "Unauthenticated proposals ordered by score (highest first)" "$SCORE_ORDERED"
+
 echo -e "${GREEN}🎉 Comprehensive proposal ordering and label filtering test completed!${NC}"
