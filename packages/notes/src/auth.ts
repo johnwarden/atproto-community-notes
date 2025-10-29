@@ -81,6 +81,8 @@ export class AuthService {
       const payload = unsafeDecodeJwt(token)
       const userDid = payload.sub
 
+      log.debug({"tokenPayload": payload}, "Decoded JWT payload")
+
       if (
         !userDid ||
         typeof userDid !== 'string' ||

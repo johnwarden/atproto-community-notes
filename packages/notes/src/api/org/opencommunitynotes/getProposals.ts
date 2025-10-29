@@ -29,6 +29,9 @@ export default function (server: Server, ctx: AppContext) {
       let viewerAid: string | undefined
 
       if (authHeader) {
+
+        log.debug({"authHeader": authHeader}, "Got auth header")
+
         const authResult = await ctx.auth.verifyBearerToken(authHeader)
         if (authResult.success && authResult.did) {
           // Validate repository account configuration
