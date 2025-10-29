@@ -10,9 +10,7 @@
   "scripts": {
     "build": "pnpm run --sort --recursive --stream '/^(build|build:.+)$/'",
     "codegen": "pnpm run --sort --recursive --stream --parallel codegen",
-    "test": "pnpm -r test",
     "dev": "pnpm --filter notes start",
-    "test:notes": "pnpm --filter notes test",
     "lint": "eslint . --ext .ts,.js,.tsx,.jsx",
     "lint:fix": "eslint . --ext .ts,.js,.tsx,.jsx --fix",
     "style": "prettier --check .",
