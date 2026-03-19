@@ -33,12 +33,12 @@
     "node": ">=18.7.0"
   },
   "dependencies": {
-    "@atproto/api": "0.16.0",
-    "@atproto/common": "^0.4.0",
-    "@atproto/identity": "^0.4.9",
-    "@atproto/lexicon": "^0.4.0",
-    "@atproto/syntax": "^0.3.0",
-    "@atproto/xrpc-server": "^0.9.4",
+    "@atproto/api": "0.19.4",
+    "@atproto/common": "^0.5.15",
+    "@atproto/identity": "^0.4.12",
+    "@atproto/lexicon": "^0.6.2",
+    "@atproto/syntax": "^0.5.1",
+    "@atproto/xrpc-server": "^0.10.17",
     "@faker-js/faker": "^9.9.0",
     "better-sqlite3": "^10.0.0",
     "cors": "2.8.5",
@@ -51,9 +51,9 @@
     "pino-http": "8.6.1"
   },
   "devDependencies": {
-    "@atproto/crypto": "^0.4.0",
-    "@atproto/dev-env": "^0.3.183",
-    "@atproto/lex-cli": "0.9.4",
+    "@atproto/crypto": "^0.4.5",
+    "@atproto/dev-env": "^0.3.215",
+    "@atproto/lex-cli": "0.9.9",
     "@did-plc/lib": "^0.0.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.17",
