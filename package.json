@@ -11,8 +11,8 @@
     "build": "pnpm run --sort --recursive --stream '/^(build|build:.+)$/'",
     "codegen": "pnpm run --sort --recursive --stream --parallel codegen",
     "dev": "pnpm --filter notes start",
-    "lint": "eslint . --ext .ts,.js,.tsx,.jsx",
-    "lint:fix": "eslint . --ext .ts,.js,.tsx,.jsx --fix",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.js,.tsx,.jsx",
+    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.js,.tsx,.jsx --fix",
     "style": "prettier --check .",
     "style:fix": "prettier --write .",
     "format": "pnpm lint:fix && pnpm style:fix"
