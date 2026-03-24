@@ -16,9 +16,6 @@ default:
     @just --list
 
 
-
-
-
 # Check environment variables (non-sensitive only)
 prod-env:
     @echo "🔧 Environment variables status:"
@@ -37,14 +34,13 @@ prod-env:
     @echo "LOG_DESTINATION: ${LOG_DESTINATION}"
 
 
-
 # One-command health check of everything
 status: health fly-status
 
 # Check service health endpoints
 health:
     @curl -s "https://atproto-notes-api.fly.dev/health" | jq . || echo "Service: ❌ Not responding"
-    @curl -s "http://atproto-notes-api.internal:8081/_health" | jq . || echo "❌ Internal API not responding"
+    @curl -s "http://atproto-notes-api.internal:8081/internal/_health" | jq . || echo "❌ Internal API not responding"
 
 # === Internal API Testing ===
 
@@ -61,8 +57,13 @@ set-score PROPOSAL_URI STATUS SCORE:
     echo "📊 Setting score for proposal..."
     curl -s -X POST "http://atproto-notes-api.internal:8081/score" \
         -H "Content-Type: application/json" \
-        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}'
+        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "{{STATUS}}", "score": {{SCORE}}}' | jq .
 
+rate-helpful PROPOSAL_URI:
+    echo "📊 Rating proposal as helpful..."
+    curl -s -X POST "http://atproto-notes-api.internal:8081/score" \
+        -H "Content-Type: application/json" \
+        -d '{"proposalUri": "{{PROPOSAL_URI}}", "status": "rated_helpful", "score": 0.9}' | jq .
 
 
 # === LiteFS Setup ===
