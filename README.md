@@ -1,6 +1,6 @@
 # ATProto Community Notes
 
-An open implementation of **community notes** for the [AT Protocol](https://atproto.com) ecosystem: proposals, voting, scoring, labels, and feed-generator integration over XRPC.
+An reference implementation of a **community notes** service for the [AT Protocol](https://atproto.com): the submission service and app view (proposals, voting, scoring, labels, and feed-generator integration over XRPC).
 
 Background and protocol spec live in [**Open Community Notes**](https://github.com/johnwarden/open-community-notes).
 
