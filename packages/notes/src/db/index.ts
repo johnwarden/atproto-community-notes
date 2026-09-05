@@ -85,7 +85,7 @@ export class Database {
     try {
       await this.db.selectFrom('record').select('uri').limit(1).execute()
       return true
-    } catch (err) {
+    } catch (_err) {
       return false
     }
   }

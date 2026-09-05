@@ -231,7 +231,7 @@ describe('Feed Hydration', () => {
                 `⏳ Error on attempt ${attempt}: ${errorData.error} - ${errorData.message}, retrying...\n`,
               )
             }
-          } catch (parseError) {
+          } catch (_parseError) {
             // Non-JSON error response, log and continue retrying
             process.stderr.write(
               `⏳ Non-JSON error on attempt ${attempt}: ${lastError}, retrying...\n`,

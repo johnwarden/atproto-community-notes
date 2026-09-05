@@ -77,7 +77,7 @@ describe('Label Hydration', () => {
                 `Default request failed with error: ${errorData.error}`,
               )
             }
-          } catch (parseError) {
+          } catch (_parseError) {
             throw new Error(lastError)
           }
         }

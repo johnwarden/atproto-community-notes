@@ -116,7 +116,7 @@ export async function validateRecordCid(
     const ipldRecord = common.jsonToIpld(record)
     const cid = await common.cidForCbor(ipldRecord)
     return cid.toString() === expectedCid
-  } catch (error) {
+  } catch (_error) {
     return false
   }
 }
@@ -132,9 +132,10 @@ export async function validateCidForBytes(
     const ipldRecord = lexToIpld(record)
     const cborBytes = cborEncode(ipldRecord)
     const cid = CID.parse(cidString)
+
     await verifyCidForBytes(cid, cborBytes)
     return true
-  } catch (error) {
+  } catch (_error) {
     return false
   }
 }
@@ -161,7 +162,7 @@ export async function getOrCreatePdsAgent(ctx: AppContext): Promise<{
         agent: ctx.pdsAgent.agent,
         serviceRepoId: ctx.pdsAgent.serviceRepoId,
       }
-    } catch (err) {
+    } catch (_err) {
       // Session invalid, will create new one below
       log.debug('Cached PDS agent session invalid, creating new one')
     }
@@ -414,7 +415,7 @@ export async function normalizeAtUri(
 
       if (result.data.did) {
         // Replace the handle with the DID in the URI
-        uri.host = result.data.did
+        uri.hostname = result.data.did
         const normalizedUri = uri.toString()
 
         log.debug(
