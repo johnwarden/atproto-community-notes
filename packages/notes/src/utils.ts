@@ -415,7 +415,7 @@ export async function normalizeAtUri(
 
       if (result.data.did) {
         // Replace the handle with the DID in the URI
-        uri.host = result.data.did
+        uri.hostname = result.data.did
         const normalizedUri = uri.toString()
 
         log.debug(
