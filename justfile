@@ -41,12 +41,12 @@ test FILE="":
 
 
 lint PACKAGE="":
-    eslint "packages/notes" --ext .ts,.js,.tsx,.jsx
+    eslint "packages/notes"
 
 # Format source files (lint --fix and prettier --write)
 format  *ARGS:
     #!/usr/bin/env bash
-    eslint "packages/notes" --ext .ts,.js,.tsx,.jsx --fix
+    eslint "packages/notes" --fix
     prettier --write "packages/notes" {{ARGS}}
 
 # verify

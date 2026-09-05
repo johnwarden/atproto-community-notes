@@ -1,8 +1,8 @@
+import { readFile } from 'node:fs/promises'
 import {
   Server as HttpServer,
   createServer as createHttpServer,
 } from 'node:http'
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import cors from 'cors'
 import express, { json } from 'express'
@@ -259,23 +259,26 @@ export class NotesService {
       let avatarBlob: any = undefined
       try {
         // Get the path to the icon file (relative to the compiled JS file in dist/)
-        const iconPath = join(__dirname, '../assets/feed-icons/community-notes-avatar.png')
-        
+        const iconPath = join(
+          __dirname,
+          '../assets/feed-icons/community-notes-avatar.png',
+        )
+
         log.debug({ iconPath }, 'Reading feed avatar icon')
         const iconData = await readFile(iconPath)
-        
+
         // Upload the icon as a blob to the PDS
         const avatarRes = await agent.api.com.atproto.repo.uploadBlob(
           iconData,
-          { encoding: 'image/png' }
+          { encoding: 'image/png' },
         )
-        
+
         avatarBlob = avatarRes.data.blob
         log.info({ blobRef: avatarBlob }, 'Feed avatar uploaded successfully')
       } catch (error) {
         log.warn(
           { error: error instanceof Error ? error.message : error },
-          'Failed to upload feed avatar - feeds will be created without avatar'
+          'Failed to upload feed avatar - feeds will be created without avatar',
         )
         // Continue without avatar - not critical for feed functionality
       }
@@ -306,7 +309,7 @@ export class NotesService {
             description: fg.description,
             createdAt: new Date().toISOString(),
           }
-          
+
           // Add avatar if it was successfully uploaded
           if (avatarBlob) {
             record.avatar = avatarBlob
@@ -799,7 +802,7 @@ export class NotesService {
       // But in tests, the PDS might already be closed, causing hangs
       // So we skip the logout and just clear the reference
       // The HTTP connections will close naturally when the process exits
-      
+
       // Note: If this is a production deployment (not a test environment),
       // we should call logout(). For now, we'll just clear the reference.
       ctx.pdsAgent = undefined

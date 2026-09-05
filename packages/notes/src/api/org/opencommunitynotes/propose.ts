@@ -283,7 +283,10 @@ export default function (server: Server, ctx: AppContext) {
           return {
             status: 400,
             error: 'InvalidTarget',
-            message: error instanceof Error ? error.message : 'Note text validation failed',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Note text validation failed',
           } as HandlerError
         }
 

@@ -10,6 +10,8 @@
  * Usage: npm run test-network or node dist/tests/test-network-runner.js
  */
 
+// get-port is a notes workspace dep; this helper is not its own package.
+// eslint-disable-next-line import/no-unresolved
 import getPort from 'get-port'
 import { TestNetworkWrapper } from '../notes/src/dev-env/test-network-wrapper'
 import {

@@ -353,20 +353,23 @@ describe('Notes API', () => {
       },
     )
 
-    assert.ok(!overLimitResponse.ok, 'Note over 280 character limit should be rejected')
-    
+    assert.ok(
+      !overLimitResponse.ok,
+      'Note over 280 character limit should be rejected',
+    )
+
     const overLimitData = await overLimitResponse.json().catch(() => ({}))
     assert.strictEqual(
       overLimitData.error,
       'InvalidTarget',
       `Over-limit note rejected - Error must be "InvalidTarget". Got: ${overLimitData.error}`,
     )
-    
+
     assert.ok(
       overLimitData.message?.includes('280 characters'),
       `Error message should mention 280 character limit. Got: ${overLimitData.message}`,
     )
-    
+
     assert.ok(
       overLimitData.message?.includes('counting URLs as 1 character'),
       `Error message should mention URL counting. Got: ${overLimitData.message}`,

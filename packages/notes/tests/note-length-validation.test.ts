@@ -1,6 +1,9 @@
 import assert from 'node:assert'
 import { describe, test } from 'node:test'
-import { isValidNoteLength, validateNoteText } from '../src/validation/note-length'
+import {
+  isValidNoteLength,
+  validateNoteText,
+} from '../src/validation/note-length'
 
 describe('Note Length Validation', () => {
   test('✅ Simple text within limit should pass', () => {
@@ -10,14 +13,16 @@ describe('Note Length Validation', () => {
   })
 
   test('✅ Text with URL (URL counts as 1 char)', () => {
-    const text = 'Check this out: https://example.com/very/long/path/to/something'
+    const text =
+      'Check this out: https://example.com/very/long/path/to/something'
     // Should count as ~20 characters (text + 1 for URL), not 60+
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
   })
 
   test('✅ Multiple URLs (each counts as 1 char)', () => {
-    const text = 'Source 1: https://example.com/long/url and Source 2: https://another-example.com/path'
+    const text =
+      'Source 1: https://example.com/long/url and Source 2: https://another-example.com/path'
     // Should count each URL as 1 character
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
@@ -40,7 +45,7 @@ describe('Note Length Validation', () => {
     // 279 chars + 1 space + 1 URL = 281 total
     const text = 'a'.repeat(279) + ' https://example.com'
     assert.strictEqual(isValidNoteLength(text), false)
-    
+
     assert.throws(
       () => validateNoteText(text),
       /Note text cannot exceed 280 characters/,
@@ -50,7 +55,7 @@ describe('Note Length Validation', () => {
   test('❌ Text over limit without URLs should fail', () => {
     const text = 'a'.repeat(281)
     assert.strictEqual(isValidNoteLength(text), false)
-    
+
     assert.throws(
       () => validateNoteText(text),
       /Note text cannot exceed 280 characters/,
@@ -58,19 +63,22 @@ describe('Note Length Validation', () => {
   })
 
   test('✅ URL at beginning of text', () => {
-    const text = 'https://example.com/very/long/path/to/resource followed by some text'
+    const text =
+      'https://example.com/very/long/path/to/resource followed by some text'
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
   })
 
   test('✅ URL at end of text', () => {
-    const text = 'Some text followed by https://example.com/very/long/path/to/resource'
+    const text =
+      'Some text followed by https://example.com/very/long/path/to/resource'
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
   })
 
   test('✅ HTTP and HTTPS URLs both count as 1 char', () => {
-    const text = 'HTTP: http://example.com/path and HTTPS: https://example.com/path'
+    const text =
+      'HTTP: http://example.com/path and HTTPS: https://example.com/path'
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
   })
@@ -97,15 +105,21 @@ describe('Note Length Validation', () => {
 
   test('❌ Error message includes character count and URL note', () => {
     const text = 'a'.repeat(281)
-    
+
     try {
       validateNoteText(text)
       assert.fail('Should have thrown an error')
     } catch (error) {
       const message = (error as Error).message
       assert.ok(message.includes('280 characters'), 'Should mention limit')
-      assert.ok(message.includes('281 characters'), 'Should mention current count')
-      assert.ok(message.includes('counting URLs as 1 character'), 'Should mention URL counting')
+      assert.ok(
+        message.includes('281 characters'),
+        'Should mention current count',
+      )
+      assert.ok(
+        message.includes('counting URLs as 1 character'),
+        'Should mention URL counting',
+      )
     }
   })
 
@@ -114,12 +128,14 @@ describe('Note Length Validation', () => {
     const urls = Array(10).fill('https://example.com/very/long/path').join(' ')
     // 10 URLs = 10 chars + 9 spaces = 19 chars
     const remainingSpace = 280 - 19
-    const text = 'a'.repeat(remainingSpace) + ' ' + urls.split(' ').slice(0, 9).join(' ')
+    const text =
+      'a'.repeat(remainingSpace) + ' ' + urls.split(' ').slice(0, 9).join(' ')
     assert.strictEqual(isValidNoteLength(text), true)
   })
 
   test('✅ URL with query parameters and fragments', () => {
-    const text = 'Check this: https://example.com/path?query=value&other=param#fragment'
+    const text =
+      'Check this: https://example.com/path?query=value&other=param#fragment'
     assert.strictEqual(isValidNoteLength(text), true)
     assert.doesNotThrow(() => validateNoteText(text))
   })
@@ -143,4 +159,3 @@ describe('Note Length Validation', () => {
     assert.doesNotThrow(() => validateNoteText(text))
   })
 })
-

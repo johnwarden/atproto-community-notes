@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate lexicon TypeScript
+        run: pnpm codegen
+
       - name: Lint
         run: pnpm lint
 
