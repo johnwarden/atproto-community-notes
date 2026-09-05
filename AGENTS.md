@@ -85,6 +85,12 @@ If you are developing a frontend that consumes this backend, you can start the b
 6. **Discover services**: `curl -s http://localhost:2581 | jq .` returns all service URLs
 7. **Authenticate**: `curl -s -X POST http://localhost:2583/xrpc/com.atproto.server.createSession -H "Content-Type: application/json" -d '{"identifier": "alice.test", "password": "hunter2"}' | jq '.accessJwt'`
 
+### Supported auth modes
+
+- **Password session (existing clients):** `Authorization: Bearer <accessJwt>` — verified via the user's PDS `com.atproto.server.getSession`.
+- **OAuth / DPoP:** `Authorization: DPoP <access_token>` plus a `DPoP` proof header — verified with ATProto OAuth / RFC 9449 rules (`packages/notes/src/auth.ts` `verifyAuthHeader`).
+- **Anonymous:** omit `Authorization` on `getProposals` and feed skeletons (200). Present-but-invalid auth, including empty `Bearer`, is 401. `propose` / `vote` always require auth.
+
 The Community Notes API is at `http://localhost:2595`. Key endpoints:
 - `GET /health` — health check
 - `GET /xrpc/org.opencommunitynotes.getConfig` — service configuration

@@ -24,28 +24,24 @@ export default function (server: Server, ctx: AppContext) {
       // If not provided, we'll use undefined to allow random count generation
       const explicitLimit = req.url?.includes('limit=') ? limit : undefined
 
-      // Optional authentication - check for bearer token if present
-      const authHeader = req.headers?.authorization
+      // Optional authentication: missing header → anonymous 200;
+      // present-but-invalid (empty Bearer, bad DPoP, etc.) → hard 401
+      const authResult = await ctx.auth.verifyAuthHeader(req)
       let viewerAid: string | undefined
 
-      if (authHeader) {
-
-        log.debug({"authHeader": authHeader}, "Got auth header")
-
-        const authResult = await ctx.auth.verifyBearerToken(authHeader)
-        if (authResult.success && authResult.did) {
-          // Validate repository account configuration
-          if (!ctx.repoAccount?.did || !ctx.aidSalt) {
-            throw new AuthRequiredError('Notes service configuration error')
-          }
-
-          viewerAid = generateAid(authResult.did, ctx.aidSalt)
-        } else {
-          // Authorization attempted but failed - fail hard
-          throw new AuthRequiredError(
-            authResult.error || 'Invalid or expired token',
-          )
+      if (authResult.missing) {
+        // Unauthenticated — continue without viewer context
+      } else if (authResult.success && authResult.did) {
+        // Validate repository account configuration
+        if (!ctx.repoAccount?.did || !ctx.aidSalt) {
+          throw new AuthRequiredError('Notes service configuration error')
         }
+
+        viewerAid = generateAid(authResult.did, ctx.aidSalt)
+      } else {
+        throw new AuthRequiredError(
+          authResult.error || 'Invalid or expired token',
+        )
       }
 
       log.info(

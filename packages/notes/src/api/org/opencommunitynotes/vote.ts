@@ -31,18 +31,8 @@ export default function (server: Server, ctx: AppContext) {
           'rateNote request received',
         )
 
-        // Verify authentication
-        const authHeader = req.headers?.authorization
-        if (!authHeader) {
-          log.warn({ uri: input.body.uri }, 'Missing Authorization header')
-          return {
-            status: 401,
-            error: 'AuthenticationRequired',
-            message: 'Authorization header is required',
-          } as HandlerError
-        }
-
-        const authResult = await ctx.auth.verifyBearerToken(authHeader)
+        // Verify authentication (Bearer password session or DPoP OAuth)
+        const authResult = await ctx.auth.verifyAuthHeader(req)
         if (!authResult.success) {
           log.warn(
             { error: authResult.error, uri: input.body.uri },

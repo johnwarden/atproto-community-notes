@@ -89,8 +89,10 @@ export class NotesService {
         allowedHeaders: [
           'Content-Type',
           'Authorization',
+          'DPoP',
           'atproto-accept-labelers',
         ],
+        exposedHeaders: ['WWW-Authenticate', 'DPoP-Nonce'],
       }),
     )
 

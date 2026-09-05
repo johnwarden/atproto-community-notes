@@ -56,22 +56,18 @@ export default function registerFeedHandlers(
           .json({ error: 'UnknownFeed', message: 'Unknown feed' })
       }
 
-      // Get user DID from auth if available
+      // Optional auth: feeds stay anonymous on missing or invalid credentials
       let userDid: string | undefined
-      const authHeader = req.headers?.authorization
-      if (authHeader) {
-        try {
-          const authResult = await ctx.auth.verifyBearerToken(authHeader)
-          if (authResult.success) {
-            userDid = authResult.did
-          }
-        } catch (error) {
-          // Continue without user context - feeds work for anonymous users too
-          log.debug(
-            { error },
-            'Failed to verify auth token, continuing anonymously',
-          )
+      try {
+        const authResult = await ctx.auth.verifyAuthHeader(req)
+        if (authResult.success) {
+          userDid = authResult.did
         }
+      } catch (error) {
+        log.debug(
+          { error },
+          'Failed to verify auth token, continuing anonymously',
+        )
       }
 
       const feedContext = {
