@@ -91,7 +91,7 @@ export type DpopVerifier = (
 ) => Promise<AuthResult>
 
 export type AuthFetch = (
-  input: RequestInfo | URL,
+  input: string | URL,
   init?: RequestInit,
 ) => Promise<Response>
 

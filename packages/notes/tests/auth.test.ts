@@ -81,7 +81,7 @@ describe('AuthService.verifyAuthHeader', () => {
       scope: 'com.atproto.access',
     })
 
-    const fetchFn = async (input: RequestInfo | URL): Promise<Response> => {
+    const fetchFn = async (input: string | URL): Promise<Response> => {
       const url = String(input)
       assert.match(url, /com\.atproto\.server\.getSession/)
       return jsonResponse(200, { did })
@@ -190,7 +190,7 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
       'http://notes.test/xrpc/org.opencommunitynotes.getProposals',
     )
 
-    const fetchFn = async (input: RequestInfo | URL): Promise<Response> => {
+    const fetchFn = async (input: string | URL): Promise<Response> => {
       const url = String(input)
       if (url.includes('oauth-authorization-server')) {
         return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
