@@ -63,6 +63,7 @@ export async function verifyDpopBoundAccessToken(
 
     const { ath, htm, htu, jti } = payload
 
+    // jti is required (RFC 9449). v1 checks presence only — no replay store.
     if (!jti || typeof jti !== 'string') {
       return dpopFail('DPoP "jti" missing')
     }

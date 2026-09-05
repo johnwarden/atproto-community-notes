@@ -90,6 +90,8 @@ If you are developing a frontend that consumes this backend, you can start the b
 - **Password session (existing clients):** `Authorization: Bearer <accessJwt>` — verified via the user's PDS `com.atproto.server.getSession`.
 - **OAuth / DPoP:** `Authorization: DPoP <access_token>` plus a `DPoP` proof header — verified with ATProto OAuth / RFC 9449 rules (`packages/notes/src/auth.ts` `verifyAuthHeader`).
 - **Anonymous:** omit `Authorization` on `getProposals` and feed skeletons (200). Present-but-invalid auth, including empty `Bearer`, is 401. `propose` / `vote` always require auth.
+- **`PUBLIC_URL`:** public base URL of this notes service (e.g. `https://api.bluenotes.social`). DPoP `htu` is compared against this origin, not `PDS_URL` or the in-container listen address. Required behind Fly/proxy; optional locally.
+- **DPoP `jti`:** presence is required. There is intentionally no replay store in v1.
 
 The Community Notes API is at `http://localhost:2595`. Key endpoints:
 - `GET /health` — health check

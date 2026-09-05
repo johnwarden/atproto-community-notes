@@ -8,7 +8,7 @@ import {
   generateKeyPair,
 } from 'jose'
 import { AuthService, parseAuthorizationHeader } from '../src/auth'
-import { verifyDpopBoundAccessToken } from '../src/auth-dpop'
+import { buildRequestUrl, verifyDpopBoundAccessToken } from '../src/auth-dpop'
 import type { AuthRequest, AuthResult } from '../src/auth-types'
 
 function fakeJwt(payload: Record<string, unknown>): string {
@@ -219,6 +219,70 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     assert.strictEqual(result.success, true, result.error)
     assert.strictEqual(result.did, did)
     assert.strictEqual(result.scheme, 'dpop')
+  })
+
+  test('DPoP htu uses configured publicUrl, not pdsUrl or request host', async () => {
+    const did = 'did:plc:public-url-alice'
+    const issuer = 'https://issuer.example'
+    const pdsUrl = 'http://pds.internal:2583'
+    const publicUrl = 'https://api.bluenotes.social'
+    const path = '/xrpc/org.opencommunitynotes.getProposals'
+    const { accessToken, dpopProof, asJwk } = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      `${publicUrl}${path}`,
+    )
+
+    const fetchFn = async (input: string | URL): Promise<Response> => {
+      const url = String(input)
+      if (url.includes('oauth-authorization-server')) {
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [asJwk] })
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const internalReq: AuthRequest = {
+      headers: {
+        authorization: `DPoP ${accessToken}`,
+        dpop: dpopProof,
+        host: '127.0.0.1:8080',
+      },
+      method: 'GET',
+      url: path,
+      protocol: 'http',
+    }
+
+    const auth = new AuthService(pdsUrl, { fetchFn, publicUrl })
+    const result = await auth.verifyAuthHeader(internalReq)
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, did)
+
+    const built = buildRequestUrl(internalReq, publicUrl)
+    assert.strictEqual(built.origin, publicUrl)
+    assert.notStrictEqual(built.origin, new URL(pdsUrl).origin)
+    assert.notStrictEqual(built.origin, 'http://127.0.0.1:8080')
+
+    const pdsHtu = await mintDpopAccess(did, issuer, 'GET', `${pdsUrl}${path}`)
+    const pdsAuth = new AuthService(pdsUrl, {
+      fetchFn,
+      publicUrl,
+    })
+    const pdsResult = await pdsAuth.verifyAuthHeader({
+      headers: {
+        authorization: `DPoP ${pdsHtu.accessToken}`,
+        dpop: pdsHtu.dpopProof,
+        host: '127.0.0.1:8080',
+      },
+      method: 'GET',
+      url: path,
+      protocol: 'http',
+    })
+    assert.strictEqual(pdsResult.success, false)
+    assert.match(pdsResult.error || '', /htu/)
   })
 
   test('rejects DPoP scheme without proof header', async () => {

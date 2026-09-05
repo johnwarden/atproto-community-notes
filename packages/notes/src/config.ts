@@ -15,6 +15,12 @@ export interface NotesServiceConfig {
   repoAccount: RepoAccount // Repository account for all records
   feedgenDocumentDid: string // Feed generator document DID (service host)
   pdsUrl: string // PDS URL for AT Protocol record creation
+  /**
+   * Public base URL of this notes service (origin only), used for DPoP `htu`.
+   * Required behind Fly/proxy so proofs match the URL clients hit, not the
+   * in-container listen address. Optional locally — request Host is used.
+   */
+  publicUrl?: string
   labeler: LabelerConfig // Labeler service configuration
 }
 
@@ -25,6 +31,7 @@ export const readEnv = (): ServerEnvironment => {
     internalApiPort: envInt('INTERNAL_API_PORT'),
     nodeEnv: envStr('NODE_ENV'),
     pdsUrl: envStr('PDS_URL'),
+    publicUrl: envStr('PUBLIC_URL'),
 
     // database
     dbPath: envStr('DB_PATH'),
@@ -50,6 +57,7 @@ export type ServerEnvironment = {
   internalApiPort?: number
   nodeEnv?: string
   pdsUrl?: string
+  publicUrl?: string
 
   // database
   dbPath?: string
@@ -81,6 +89,29 @@ export interface RepoAccountConfig {
 export interface LabelerConfig {
   did: string
   url: string
+}
+
+/**
+ * Normalize PUBLIC_URL to an http(s) origin for DPoP `htu` checks.
+ * Empty/unset is allowed (local/dev fall back to the incoming request host).
+ */
+export function parsePublicUrl(value?: string): string | undefined {
+  if (value == null || value.trim() === '') {
+    return undefined
+  }
+
+  let url: URL
+  try {
+    url = new URL(value.trim())
+  } catch {
+    throw new Error('PUBLIC_URL must be a valid URL')
+  }
+
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error('PUBLIC_URL must be http or https')
+  }
+
+  return url.origin
 }
 
 export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
@@ -130,6 +161,7 @@ export const envToCfg = (env: ServerEnvironment): NotesServiceConfig => {
     internalApiPort: env.internalApiPort,
     dbPath: env.dbPath,
     pdsUrl: env.pdsUrl!,
+    publicUrl: parsePublicUrl(env.publicUrl),
     aidSalt: env.aidSalt,
     labeler: {
       did: env.labelerDid,

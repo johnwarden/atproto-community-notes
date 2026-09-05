@@ -104,7 +104,9 @@ export class NotesService {
 
     const server = createServer()
 
-    const auth = new AuthService(this.config.pdsUrl)
+    const auth = new AuthService(this.config.pdsUrl, {
+      publicUrl: this.config.publicUrl,
+    })
     const authMiddleware = createAuthMiddleware(auth)
 
     const ctx: AppContext = {

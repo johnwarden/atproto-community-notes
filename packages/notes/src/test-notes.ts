@@ -80,6 +80,7 @@ export class TestNotes {
       repoAccount: repoAccount,
       feedgenDocumentDid: feedgenDocumentDid,
       pdsUrl: config.pdsUrl,
+      publicUrl: `http://localhost:${port}`,
       labeler: {
         did: config.labelerDid,
         url: config.labelerUrl,

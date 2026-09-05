@@ -71,7 +71,7 @@ jobs:
           source production.env
           set +a
           # Write to GITHUB_ENV for subsequent steps
-          env | grep -E '^(NODE_ENV|LOG_|PDS_URL|LABELER_|DB_PATH|REPO_DID|FEEDGEN_|HOSTNAME|PORT|INTERNAL_API_PORT)=' >> $GITHUB_ENV
+          env | grep -E '^(NODE_ENV|LOG_|PDS_URL|PUBLIC_URL|LABELER_|DB_PATH|REPO_DID|FEEDGEN_|HOSTNAME|PORT|INTERNAL_API_PORT)=' >> $GITHUB_ENV
 
       - name: Deploy to Fly.io
         run: |
@@ -86,6 +86,7 @@ jobs:
             --env LOG_LEVEL="${APP_LOG_LEVEL}" \
             --env LOG_DESTINATION="${LOG_DESTINATION}" \
             --env PDS_URL="${PDS_URL}" \
+            --env PUBLIC_URL="${PUBLIC_URL}" \
             --env LABELER_URL="${LABELER_URL}" \
             --env DB_PATH="${DB_PATH}" \
             --env REPO_DID="${REPO_DID}" \
