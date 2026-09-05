@@ -17,6 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify production deploy env preflight
+        run: bash scripts/production-deploy-env.test.sh
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -69,19 +72,31 @@ jobs:
 
       - name: Load production environment variables
         run: |
-          # Export all variables from production.env
-          set -a
-          source production.env
-          set +a
-          # Write to GITHUB_ENV for subsequent steps
-          env | grep -E '^(NODE_ENV|LOG_|PDS_URL|PUBLIC_URL|LABELER_|DB_PATH|REPO_DID|FEEDGEN_|HOSTNAME|PORT|INTERNAL_API_PORT)=' >> $GITHUB_ENV
+          set -euo pipefail
+          # Explicit KEY=value writes only. Do not scrape `env | grep` into
+          # GITHUB_ENV — run 33938603909 dropped LABELER_*, LOG_*, and
+          # FEEDGEN_DOCUMENT_DID, so fly deploy wrote empty LABELER_DID=.
+          ./scripts/production-deploy-env.sh --write-github-env
 
       - name: Deploy to Fly.io
         run: |
+          set -euo pipefail
+          # Re-load from production.env in this step and fail closed.
+          # GITHUB_ENV is not the source of truth for fly --env values.
+          # shellcheck disable=SC1091
+          source ./scripts/production-deploy-env.sh
+
+          if [[ -z "${LABELER_DID:-}" || -z "${LABELER_URL:-}" || -z "${PDS_URL:-}" \
+             || -z "${PUBLIC_URL:-}" || -z "${REPO_DID:-}" || -z "${DB_PATH:-}" \
+             || -z "${FEEDGEN_DOCUMENT_DID:-}" ]]; then
+            echo "ERROR: required deploy env empty after source; refusing fly deploy" >&2
+            exit 1
+          fi
+
           # Save LOG_LEVEL before unsetting (to pass to app but not flyctl)
           APP_LOG_LEVEL="${LOG_LEVEL}"
           unset LOG_LEVEL
-          
+
           fly deploy \
             --config fly.toml \
             --env NODE_ENV="${NODE_ENV}" \

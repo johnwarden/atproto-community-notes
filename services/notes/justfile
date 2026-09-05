@@ -103,14 +103,24 @@ setup-secrets:
 
 # Deploy Notes service to Fly.io (from project root)
 deploy:
-    @echo "🚀 Deploying Notes service from project root..."
-    cd ../.. && {{fly}} deploy \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    root="$(cd "{{justfile_directory()}}/../.." && pwd)"
+    cd "$root"
+    echo "🚀 Deploying Notes service from project root..."
+    set -a
+    # shellcheck disable=SC1091
+    source "${root}/production.env"
+    set +a
+    "${root}/scripts/production-deploy-env.sh"
+    {{fly}} deploy \
         --config fly.toml \
         --env NODE_ENV="${NODE_ENV}" \
         --env LOG_ENABLED="${LOG_ENABLED}" \
         --env LOG_LEVEL="${LOG_LEVEL}" \
         --env LOG_DESTINATION="${LOG_DESTINATION}" \
         --env PDS_URL="${PDS_URL}" \
+        --env PUBLIC_URL="${PUBLIC_URL}" \
         --env LABELER_URL="${LABELER_URL}" \
         --env DB_PATH="${DB_PATH}" \
         --env REPO_DID="${REPO_DID}" \
