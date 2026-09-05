@@ -18,17 +18,15 @@ export function createAuthMiddleware(authService: AuthService) {
       res: Response,
       next: NextFunction,
     ) => {
-      const authHeader = req.headers.authorization
+      const authResult = await authService.verifyAuthHeader(req)
 
-      if (!authHeader) {
+      if (authResult.missing) {
         log.warn({ url: req.url }, 'Missing Authorization header')
         return res.status(401).json({
           error: 'AuthenticationRequired',
           message: 'Authorization header is required',
         })
       }
-
-      const authResult = await authService.verifyBearerToken(authHeader)
 
       if (!authResult.success) {
         log.warn(
@@ -62,15 +60,7 @@ export function createAuthMiddleware(authService: AuthService) {
       res: Response,
       next: NextFunction,
     ) => {
-      const authHeader = req.headers.authorization
-
-      if (!authHeader) {
-        // No auth header provided, continue without auth
-        next()
-        return
-      }
-
-      const authResult = await authService.verifyBearerToken(authHeader)
+      const authResult = await authService.verifyAuthHeader(req)
 
       if (authResult.success) {
         req.auth = {
@@ -81,7 +71,7 @@ export function createAuthMiddleware(authService: AuthService) {
           { did: authResult.did, url: req.url },
           'Optional authentication succeeded',
         )
-      } else {
+      } else if (!authResult.missing) {
         log.debug(
           { url: req.url, error: authResult.error },
           'Optional authentication failed, continuing without auth',

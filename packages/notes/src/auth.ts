@@ -1,11 +1,23 @@
 import { IdResolver } from '@atproto/identity'
+import { verifyDpopBoundAccessToken } from './auth-dpop'
+import {
+  AuthFetch,
+  AuthRequest,
+  AuthResult,
+  AuthServiceOptions,
+  DpopVerifier,
+  headerValue,
+  parseAuthorizationHeader,
+} from './auth-types'
 import { appLogger as log } from './logger'
 
-export interface AuthResult {
-  success: boolean
-  did?: string
-  error?: string
-}
+export type {
+  AuthRequest,
+  AuthResult,
+  AuthServiceOptions,
+  DpopVerifier,
+} from './auth-types'
+export { parseAuthorizationHeader } from './auth-types'
 
 interface AtProtoJwtPayload {
   iss?: string // Issuer (PDS URL) - present in dev-env tokens
@@ -52,10 +64,16 @@ function unsafeDecodeJwt(token: string): AtProtoJwtPayload {
 export class AuthService {
   private pdsUrl: string
   private idResolver: IdResolver
+  private fetchFn: AuthFetch
+  private verifyDpopFn?: DpopVerifier
+  private publicUrl?: string
 
-  constructor(pdsUrl?: string) {
+  constructor(pdsUrl?: string, options: AuthServiceOptions = {}) {
     // Use provided PDS URL or default to localhost:2583 for dev-env compatibility
     this.pdsUrl = pdsUrl || 'http://localhost:2583'
+    this.fetchFn = options.fetchFn || fetch
+    this.verifyDpopFn = options.verifyDpop
+    this.publicUrl = options.publicUrl
 
     // Configure IdResolver with production PLC URL since DID resolution
     // only happens for production tokens (dev tokens have iss field)
@@ -63,25 +81,87 @@ export class AuthService {
   }
 
   /**
-   * Verify a bearer token using delegated authentication.
-   * Calls the user's PDS getSession endpoint to validate the token.
+   * Single auth entrypoint for XRPC and feed handlers.
+   * Dispatches password-session Bearer JWTs vs DPoP-bound OAuth access tokens.
    */
-  async verifyBearerToken(authHeader: string): Promise<AuthResult> {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  async verifyAuthHeader(req: AuthRequest): Promise<AuthResult> {
+    const parsed = parseAuthorizationHeader(
+      headerValue(req.headers, 'authorization'),
+    )
+
+    if ('missing' in parsed) {
       return {
         success: false,
-        error: 'Missing or invalid Authorization header',
+        missing: true,
+        error: 'Missing Authorization header',
       }
     }
 
-    const token = authHeader.slice(7) // Remove 'Bearer ' prefix
+    if ('error' in parsed) {
+      return {
+        success: false,
+        error: parsed.error,
+      }
+    }
 
+    if (parsed.scheme === 'bearer') {
+      return this.verifyPasswordSession(parsed.token)
+    }
+
+    return this.verifyDpopRequest(req, parsed.token)
+  }
+
+  /**
+   * Verify a bearer token using delegated authentication.
+   * Calls the user's PDS getSession endpoint to validate the token.
+   *
+   * Prefer {@link verifyAuthHeader} for new callers — this remains for
+   * password-session clients that only pass the Authorization header string.
+   */
+  async verifyBearerToken(authHeader: string): Promise<AuthResult> {
+    const parsed = parseAuthorizationHeader(authHeader)
+    if ('missing' in parsed) {
+      return {
+        success: false,
+        missing: true,
+        error: 'Missing or invalid Authorization header',
+      }
+    }
+    if ('error' in parsed) {
+      return {
+        success: false,
+        error: parsed.error,
+      }
+    }
+    if (parsed.scheme !== 'bearer') {
+      return {
+        success: false,
+        error: 'verifyBearerToken only accepts Bearer tokens',
+      }
+    }
+    return this.verifyPasswordSession(parsed.token)
+  }
+
+  private async verifyDpopRequest(
+    req: AuthRequest,
+    accessToken: string,
+  ): Promise<AuthResult> {
+    if (this.verifyDpopFn) {
+      return this.verifyDpopFn(req, accessToken)
+    }
+    return verifyDpopBoundAccessToken(req, accessToken, {
+      fetchFn: this.fetchFn,
+      publicUrl: this.publicUrl,
+    })
+  }
+
+  private async verifyPasswordSession(token: string): Promise<AuthResult> {
     try {
       // Extract the user's DID from the token and resolve their PDS URL
       const payload = unsafeDecodeJwt(token)
       const userDid = payload.sub
 
-      log.debug({"tokenPayload": payload}, "Decoded JWT payload")
+      log.debug({ tokenPayload: payload }, 'Decoded JWT payload')
 
       if (
         !userDid ||
@@ -90,6 +170,7 @@ export class AuthService {
       ) {
         return {
           success: false,
+          scheme: 'bearer',
           error: 'Invalid or missing user DID in token',
         }
       }
@@ -144,6 +225,7 @@ export class AuthService {
           } else {
             return {
               success: false,
+              scheme: 'bearer',
               error: `Cannot resolve PDS URL for user DID: ${userDid}`,
             }
           }
@@ -162,6 +244,7 @@ export class AuthService {
         return {
           success: true,
           did: sessionResponse.did,
+          scheme: 'bearer',
         }
       } else {
         log.error(
@@ -171,6 +254,7 @@ export class AuthService {
 
         return {
           success: false,
+          scheme: 'bearer',
           error: sessionResponse.error || 'Token verification failed',
         }
       }
@@ -181,6 +265,7 @@ export class AuthService {
 
       return {
         success: false,
+        scheme: 'bearer',
         error: 'Internal authentication error',
       }
     }
@@ -242,7 +327,7 @@ export class AuthService {
     token: string,
   ): Promise<AuthResult> {
     try {
-      const response = await fetch(
+      const response = await this.fetchFn(
         `${pdsUrl}/xrpc/com.atproto.server.getSession`,
         {
           method: 'GET',
@@ -260,10 +345,12 @@ export class AuthService {
           return {
             success: true,
             did: data.did,
+            scheme: 'bearer',
           }
         } else {
           return {
             success: false,
+            scheme: 'bearer',
             error: 'No DID in session response',
           }
         }
@@ -271,6 +358,7 @@ export class AuthService {
         const errorText = await response.text()
         return {
           success: false,
+          scheme: 'bearer',
           error: `PDS returned ${response.status}: ${errorText}`,
         }
       }
@@ -279,6 +367,7 @@ export class AuthService {
         error instanceof Error ? error.message : 'Unknown error'
       return {
         success: false,
+        scheme: 'bearer',
         error: `Failed to contact PDS: ${errorMessage}`,
       }
     }

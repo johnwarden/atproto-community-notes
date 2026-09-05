@@ -342,6 +342,7 @@ just deploy
 - `PORT=8081`
 - `LOG_LEVEL=info`
 - `PDS_URL=https://bsky.network`
+- `PUBLIC_URL=https://api.bluenotes.social` (DPoP `htu`; required behind Fly/proxy)
 - `DB_PATH=/litefs/notes.db`
 - `PRIMARY_REGION=sjc`
 - `REPO_DID=did:plc:your-service-did`

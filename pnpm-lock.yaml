@@ -84,6 +84,9 @@ importers:
       graphemer:
         specifier: ^1.4.0
         version: 1.4.0
+      jose:
+        specifier: ^4.15.9
+        version: 4.15.9
       kysely:
         specifier: ^0.22.0
         version: 0.22.0
@@ -2536,6 +2539,9 @@ packages:
 
   jackspeak@3.4.3:
     resolution: {integrity: sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw==}
+
+  jose@4.15.9:
+    resolution: {integrity: sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA==}
 
   jose@5.10.0:
     resolution: {integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==}
@@ -6047,6 +6053,7 @@ snapshots:
       cors: 2.8.5
       express: 4.18.2
       graphemer: 1.4.0
+      jose: 4.15.9
       kysely: 0.22.0
       multiformats: 9.9.0
       pg: 8.20.0
@@ -7041,6 +7048,8 @@ snapshots:
       '@isaacs/cliui': 8.0.2
     optionalDependencies:
       '@pkgjs/parseargs': 0.11.0
+
+  jose@4.15.9: {}
 
   jose@5.10.0: {}
 

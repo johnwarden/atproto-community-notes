@@ -43,6 +43,21 @@ The local stack follows the multi-service **test network** pattern from the AT P
 
 Use `just health` to probe endpoints. Default ports, credentials, and the rest of the workflow are in [`AGENTS.md`](./AGENTS.md).
 
+## Authentication
+
+The Community Notes XRPC API accepts two client auth modes:
+
+| Mode | `Authorization` | Extra headers | How it is verified |
+|------|-----------------|---------------|--------------------|
+| Password session (existing) | `Bearer <accessJwt>` | — | PDS `com.atproto.server.getSession` |
+| OAuth (DPoP-bound) | `DPoP <access_token>` | `DPoP: <proof JWT>` | ATProto OAuth / RFC 9449 DPoP (jose), then issuer JWKS |
+
+`getProposals` and feed skeletons are anonymous when the header is omitted. A present but invalid header (including empty `Bearer`) is **401**. `propose` and `vote` always require a valid token.
+
+Behind a reverse proxy, set `PUBLIC_URL` to the public base URL clients call (for example `https://api.bluenotes.social`). DPoP `htu` checks use this value, not `PDS_URL` or the process listen address. Unset locally — the incoming request host is used.
+
+Implementation: `AuthService.verifyAuthHeader(req)` in `packages/notes/src/auth.ts`.
+
 ## License
 
 MIT. See [`LICENSE`](./LICENSE).
