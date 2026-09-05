@@ -83,33 +83,31 @@ jobs:
           set -euo pipefail
           # Re-load from production.env in this step and fail closed.
           # GITHUB_ENV is not the source of truth for fly --env values.
+          # fly deploy --env KEY=value clobbers that machine env key; empty
+          # values wipe the previous working value (run 33938603909). The
+          # sourced script builds FLY_DEPLOY_ENV_ARGS with non-empty keys only.
           # shellcheck disable=SC1091
           source ./scripts/production-deploy-env.sh
 
-          if [[ -z "${LABELER_DID:-}" || -z "${LABELER_URL:-}" || -z "${PDS_URL:-}" \
-             || -z "${PUBLIC_URL:-}" || -z "${REPO_DID:-}" || -z "${DB_PATH:-}" \
-             || -z "${FEEDGEN_DOCUMENT_DID:-}" ]]; then
-            echo "ERROR: required deploy env empty after source; refusing fly deploy" >&2
+          if [[ ${#FLY_DEPLOY_ENV_ARGS[@]} -eq 0 ]]; then
+            echo "ERROR: no non-empty fly --env args; refusing fly deploy" >&2
             exit 1
           fi
+          for _arg in "${FLY_DEPLOY_ENV_ARGS[@]}"; do
+            if [[ "$_arg" == --env ]]; then
+              continue
+            fi
+            if [[ "$_arg" == *= ]]; then
+              echo "ERROR: refusing empty fly ${_arg} (would wipe machine env)" >&2
+              exit 1
+            fi
+          done
 
-          # Save LOG_LEVEL before unsetting (to pass to app but not flyctl)
-          APP_LOG_LEVEL="${LOG_LEVEL}"
-          unset LOG_LEVEL
-
-          fly deploy \
+          # flyctl treats LOG_LEVEL as its own log verbosity; strip it from
+          # the process environment while still passing it to the app via --env.
+          env -u LOG_LEVEL fly deploy \
             --config fly.toml \
-            --env NODE_ENV="${NODE_ENV}" \
-            --env LOG_ENABLED="${LOG_ENABLED}" \
-            --env LOG_LEVEL="${APP_LOG_LEVEL}" \
-            --env LOG_DESTINATION="${LOG_DESTINATION}" \
-            --env PDS_URL="${PDS_URL}" \
-            --env PUBLIC_URL="${PUBLIC_URL}" \
-            --env LABELER_URL="${LABELER_URL}" \
-            --env DB_PATH="${DB_PATH}" \
-            --env REPO_DID="${REPO_DID}" \
-            --env FEEDGEN_DOCUMENT_DID="${FEEDGEN_DOCUMENT_DID}" \
-            --env LABELER_DID="${LABELER_DID}"
+            "${FLY_DEPLOY_ENV_ARGS[@]}"
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 

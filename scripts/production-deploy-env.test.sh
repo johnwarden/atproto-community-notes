@@ -68,7 +68,7 @@ github_env="${WORKDIR}/github.env"
 : >"$github_env"
 out="$(
   PRODUCTION_ENV_FILE="$fixture" GITHUB_ENV="$github_env" \
-    "$SCRIPT" --write-github-env
+    "$SCRIPT" --write-github-env 2>&1
 )"
 assert_contains "checklist names LABELER_DID" "LABELER_DID" "$out"
 assert_contains "checklist redacts DID" "did:plc:..." "$out"
@@ -130,7 +130,7 @@ github_env_prod="${WORKDIR}/github-prod.env"
 : >"$github_env_prod"
 out="$(
   PRODUCTION_ENV_FILE="${ROOT}/production.env" GITHUB_ENV="$github_env_prod" \
-    "$SCRIPT" --write-github-env
+    "$SCRIPT" --write-github-env 2>&1
 )"
 assert_contains "real file GITHUB_ENV LABELER_DID non-empty" "LABELER_DID=did:plc:" "$(cat "$github_env_prod")"
 # Empty assignment must not appear.
@@ -147,13 +147,14 @@ set +e
 source_ok="$(
   PRODUCTION_ENV_FILE="$fixture"
   # shellcheck disable=SC1090
-  source "$SCRIPT" >/dev/null
-  printf '%s' "${LABELER_DID:-}"
+  source "$SCRIPT" >/dev/null 2>&1
+  printf '%s' "${LABELER_DID:-}|${FLY_DEPLOY_ENV_ARGS[*]}"
 )"
 source_ok_status=$?
 set -e
 assert_eq "source path exit" "0" "$source_ok_status"
-assert_eq "source path exports LABELER_DID" "did:plc:labelertestfixture0000001" "$source_ok"
+assert_contains "source path exports LABELER_DID" "did:plc:labelertestfixture0000001" "$source_ok"
+assert_contains "source path sets FLY_DEPLOY_ENV_ARGS" "--env LABELER_DID=did:plc:labelertestfixture0000001" "$source_ok"
 
 set +e
 (
@@ -164,6 +165,26 @@ set +e
 source_empty_status=$?
 set -e
 assert_eq "source path empty LABELER_DID fails" "1" "$source_empty_status"
+
+# --- fly --env args: non-empty only (empty KEY= would wipe Fly machine env) ---
+fly_args="$(PRODUCTION_ENV_FILE="$fixture" "$SCRIPT" --print-fly-env-args 2>/dev/null)"
+assert_contains "fly args include LABELER_DID" "--env LABELER_DID=did:plc:labelertestfixture0000001" "$fly_args"
+assert_contains "fly args include FEEDGEN" "--env FEEDGEN_DOCUMENT_DID=did:web:feed.example.test" "$fly_args"
+if printf '%s\n' "$fly_args" | grep -qE '^--env [A-Z0-9_]+=$'; then
+  echo "FAIL fly args contain empty --env KEY=" >&2
+  echo "$fly_args" >&2
+  failures=$((failures + 1))
+else
+  echo "PASS fly args omit empty --env KEY="
+fi
+assert_not_contains "fly args omit HOSTNAME" "HOSTNAME=" "$fly_args"
+
+omit_log="${WORKDIR}/omit-log.env"
+write_fixture "$omit_log"
+sed -i 's/^LOG_DESTINATION=.*/LOG_DESTINATION=/' "$omit_log"
+fly_args_omit="$(PRODUCTION_ENV_FILE="$omit_log" "$SCRIPT" --print-fly-env-args 2>/dev/null)"
+assert_not_contains "empty LOG_DESTINATION omitted from fly args" "LOG_DESTINATION=" "$fly_args_omit"
+assert_contains "required LABELER_DID still in fly args" "LABELER_DID=did:plc:labelertestfixture0000001" "$fly_args_omit"
 
 # --- --write-github-env without GITHUB_ENV fails ---
 set +e

@@ -6,11 +6,18 @@
 # GitHub Actions run 33938603909 wrote empty --env LABELER_DID= because
 # LABELER_*, LOG_*, and FEEDGEN_DOCUMENT_DID never reached the Deploy step.
 #
+# `fly deploy --env KEY=value` *replaces* that Fly machine env key. An empty
+# value wipes the previous working value (run 33938603909). Never pass
+# `--env KEY=` when value is empty — omit the flag instead. production.env is
+# the source of truth for these keys; CI/just deploy will clobber matching
+# machine env on each deploy.
+#
 # Usage (from repo root, or any cwd — production.env is resolved next to this
 # script's parent directory):
 #   ./scripts/production-deploy-env.sh
 #   ./scripts/production-deploy-env.sh --write-github-env
-#   source ./scripts/production-deploy-env.sh
+#   ./scripts/production-deploy-env.sh --print-fly-env-args
+#   source ./scripts/production-deploy-env.sh  # also sets FLY_DEPLOY_ENV_ARGS
 #
 # Env:
 #   PRODUCTION_ENV_FILE  Override path to the env file (tests).
@@ -56,11 +63,12 @@ _prod_deploy_env_die() {
 
 _prod_deploy_env_usage() {
   cat <<'EOF'
-Usage: production-deploy-env.sh [--write-github-env] [--help]
+Usage: production-deploy-env.sh [--write-github-env] [--print-fly-env-args] [--help]
 
 Source production.env, refuse empty required deploy vars, print a redacted
 checklist. With --write-github-env, append explicit KEY=value lines to
-GITHUB_ENV (never `env | grep`).
+GITHUB_ENV (never `env | grep`). With --print-fly-env-args, print the
+non-empty --env KEY=value flags that are safe to pass to fly deploy.
 EOF
 }
 
@@ -127,20 +135,42 @@ _prod_deploy_env_assert() {
 
 _prod_deploy_env_checklist() {
   local key value
-  echo "Production deploy env preflight (values redacted):"
+  echo "Production deploy env preflight (values redacted):" >&2
   for key in "${REQUIRED_DEPLOY_KEYS[@]}"; do
     value="${!key:-}"
-    printf '  %-22s %s\n' "$key" "$(_prod_deploy_env_redact "$key" "$value")"
+    printf '  %-22s %s\n' "$key" "$(_prod_deploy_env_redact "$key" "$value")" >&2
   done
   for key in NODE_ENV LOG_ENABLED LOG_LEVEL LOG_DESTINATION; do
     value="${!key:-}"
     if [[ -z "$value" ]]; then
-      printf '  %-22s %s\n' "$key" "empty (optional for preflight)"
+      printf '  %-22s %s\n' "$key" "empty (optional for preflight)" >&2
     else
-      printf '  %-22s %s\n' "$key" "$(_prod_deploy_env_redact "$key" "$value")"
+      printf '  %-22s %s\n' "$key" "$(_prod_deploy_env_redact "$key" "$value")" >&2
     fi
   done
-  printf '  %-22s %s\n' "AID_SALT" "skipped (Fly secret, not required from production.env)"
+  printf '  %-22s %s\n' "AID_SALT" "skipped (Fly secret, not required from production.env)" >&2
+}
+
+# Populate FLY_DEPLOY_ENV_ARGS with --env KEY=value for non-empty keys only.
+# Empty --env KEY= wipes prior Fly machine env; omit those flags.
+_prod_deploy_env_build_fly_args() {
+  FLY_DEPLOY_ENV_ARGS=()
+  local key value
+  for key in "${DEPLOY_ENV_KEYS[@]}"; do
+    value="${!key:-}"
+    if [[ -z "$value" ]]; then
+      echo "WARNING: omitting empty --env ${key}= (empty Fly --env wipes machine env)" >&2
+      continue
+    fi
+    FLY_DEPLOY_ENV_ARGS+=(--env "${key}=${value}")
+  done
+}
+
+_prod_deploy_env_print_fly_args() {
+  local i
+  for ((i = 0; i < ${#FLY_DEPLOY_ENV_ARGS[@]}; i += 2)); do
+    printf '%s %s\n' "${FLY_DEPLOY_ENV_ARGS[i]}" "${FLY_DEPLOY_ENV_ARGS[i + 1]}"
+  done
 }
 
 _prod_deploy_env_write_github_env() {
@@ -165,10 +195,12 @@ _prod_deploy_env_write_github_env() {
 
 _prod_deploy_env_main() {
   local write_github_env=0
+  local print_fly_args=0
   local arg
   for arg in "$@"; do
     case "$arg" in
       --write-github-env) write_github_env=1 ;;
+      --print-fly-env-args) print_fly_args=1 ;;
       --help|-h)
         _prod_deploy_env_usage
         return 0
@@ -182,9 +214,13 @@ _prod_deploy_env_main() {
 
   _prod_deploy_env_load || return 1
   _prod_deploy_env_assert || return 1
+  _prod_deploy_env_build_fly_args
   _prod_deploy_env_checklist
   if ((write_github_env)); then
     _prod_deploy_env_write_github_env || return 1
+  fi
+  if ((print_fly_args)); then
+    _prod_deploy_env_print_fly_args
   fi
   return 0
 }
