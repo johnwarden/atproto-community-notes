@@ -33,7 +33,9 @@ COPY ./packages/notes/src ./packages/notes/src
 COPY ./packages/notes/assets ./packages/notes/assets
 COPY ./services/notes ./services/notes
 
-# Layer 8: Build application (only runs when source code or config changes)
+# Layer 8: Generate lexicon TypeScript (gitignored; required before tsc) then build
+# CI runs `pnpm codegen` before `pnpm build`; the image must do the same.
+RUN pnpm codegen
 RUN pnpm build
 
 # Layer 9: Production dependencies setup (only when package.json changes)
