@@ -33,8 +33,8 @@ COPY ./packages/notes/src ./packages/notes/src
 COPY ./packages/notes/assets ./packages/notes/assets
 COPY ./services/notes ./services/notes
 
-# Layer 8: Build application (only runs when source code or config changes)
-RUN pnpm build
+# Layer 8: Generate lexicon TypeScript (gitignored) then build
+RUN pnpm codegen && pnpm build
 
 # Layer 9: Production dependencies setup (only when package.json changes)
 RUN rm -rf node_modules
