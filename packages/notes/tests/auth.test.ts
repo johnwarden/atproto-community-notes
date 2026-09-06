@@ -11,6 +11,7 @@ import { Secp256k1Keypair } from '@atproto/crypto'
 import { createServiceJwt } from '@atproto/xrpc-server'
 import { AuthService, parseAuthorizationHeader } from '../src/auth'
 import { buildRequestUrl, verifyDpopBoundAccessToken } from '../src/auth-dpop'
+import { looksLikeServiceAuthJwt } from '../src/auth-service-jwt'
 import type { AuthRequest, AuthResult } from '../src/auth-types'
 
 function fakeJwt(payload: Record<string, unknown>): string {
@@ -36,6 +37,49 @@ function getProposalsAuthMode(
   if (result.success) return 'authed'
   return 'reject'
 }
+
+describe('looksLikeServiceAuthJwt', () => {
+  test('requires DID iss and a non-empty lxm', () => {
+    assert.strictEqual(
+      looksLikeServiceAuthJwt(
+        fakeJwt({
+          iss: 'did:plc:alice',
+          aud: 'did:plc:notes',
+          lxm: 'org.opencommunitynotes.getProposals',
+        }),
+      ),
+      true,
+    )
+    assert.strictEqual(
+      looksLikeServiceAuthJwt(
+        fakeJwt({
+          sub: 'did:plc:alice',
+          iss: 'did:plc:pds-issuer',
+          scope: 'com.atproto.access',
+        }),
+      ),
+      false,
+    )
+    assert.strictEqual(
+      looksLikeServiceAuthJwt(
+        fakeJwt({
+          iss: 'did:plc:alice',
+          lxm: '',
+        }),
+      ),
+      false,
+    )
+    assert.strictEqual(
+      looksLikeServiceAuthJwt(
+        fakeJwt({
+          iss: 'http://pds.test',
+          lxm: 'org.opencommunitynotes.getProposals',
+        }),
+      ),
+      false,
+    )
+  })
+})
 
 describe('parseAuthorizationHeader', () => {
   test('missing header', () => {
@@ -166,6 +210,41 @@ describe('AuthService.verifyAuthHeader', () => {
     assert.strictEqual(result.did, did)
     assert.strictEqual(result.scheme, 'dpop')
     assert.strictEqual(getProposalsAuthMode(result), 'authed')
+  })
+
+  test('password accessJwt with DID iss (no lxm) uses getSession, not service-auth', async () => {
+    const did = 'did:plc:did-iss-alice'
+    const token = fakeJwt({
+      sub: did,
+      iss: 'did:plc:pds-that-looks-like-a-did',
+      scope: 'com.atproto.access',
+    })
+
+    assert.strictEqual(looksLikeServiceAuthJwt(token), false)
+
+    let getSessionCalls = 0
+    const auth = new AuthService('http://pds.test', {
+      serviceDid: 'did:plc:notes-service',
+      getSigningKey: async () => {
+        throw new Error('service-auth must not run for DID-iss password JWT')
+      },
+      fetchFn: async (input: string | URL) => {
+        assert.match(String(input), /com\.atproto\.server\.getSession/)
+        getSessionCalls += 1
+        return jsonResponse(200, { did })
+      },
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: '/xrpc/org.opencommunitynotes.getProposals',
+    })
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, did)
+    assert.strictEqual(result.scheme, 'bearer')
+    assert.strictEqual(getSessionCalls, 1)
   })
 
   test('invalid Bearer JWT fails without treating as missing', async () => {

@@ -68,7 +68,11 @@ export async function verifyServiceAuthJwt(
   }
 }
 
-/** True when Bearer token claims look like service-auth (iss is a DID). */
+/**
+ * True when Bearer claims look like AT Protocol service-auth: `iss` is a DID
+ * and `lxm` is present. A password accessJwt that happens to use a DID `iss`
+ * (no `lxm`) must stay on the getSession path.
+ */
 export function looksLikeServiceAuthJwt(token: string): boolean {
   try {
     const parts = token.split('.')
@@ -78,8 +82,13 @@ export function looksLikeServiceAuthJwt(token: string): boolean {
       padded.replace(/-/g, '+').replace(/_/g, '/'),
       'base64',
     ).toString('utf8')
-    const payload = JSON.parse(json) as { iss?: unknown }
-    return typeof payload.iss === 'string' && payload.iss.startsWith('did:')
+    const payload = JSON.parse(json) as { iss?: unknown; lxm?: unknown }
+    return (
+      typeof payload.iss === 'string' &&
+      payload.iss.startsWith('did:') &&
+      typeof payload.lxm === 'string' &&
+      payload.lxm.length > 0
+    )
   } catch {
     return false
   }
