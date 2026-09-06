@@ -559,6 +559,28 @@ describe('service-auth JWT (getServiceAuth)', () => {
     assert.strictEqual(getProposalsAuthMode(result), 'authed')
   })
 
+  test('did#serviceId aud matches notes service DID', async () => {
+    const { token, didKey } = await mintServiceAuth(
+      userDid,
+      `${serviceDid}#open_community_notes`,
+      lxm,
+    )
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => didKey,
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, userDid)
+    assert.strictEqual(result.scheme, 'service')
+  })
+
   test('wrong aud is rejected', async () => {
     const { token, didKey } = await mintServiceAuth(
       userDid,

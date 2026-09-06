@@ -14,8 +14,9 @@ export type ServiceSigningKeyFn = (
  * getServiceAuth URL, then sends `Authorization: Bearer <jwt>` here.
  * This resource server never sees or replays the notes-request DPoP proof.
  *
- * Checks: aud = notes service DID, lxm = this XRPC method, exp, signature
- * against the issuer DID's atproto signing key. Garbage is rejected.
+ * Checks: aud = notes service DID or `did#serviceId`, lxm = this XRPC method,
+ * exp, signature against the issuer DID's atproto signing key. Garbage is
+ * rejected. `verifyJwt` audience is checked here so both aud forms work.
  */
 export async function verifyServiceAuthJwt(
   token: string,
@@ -26,12 +27,15 @@ export async function verifyServiceAuthJwt(
   },
 ): Promise<AuthResult> {
   try {
-    const payload = await verifyJwt(
-      token,
-      opts.serviceDid,
-      opts.lxm,
-      opts.getSigningKey,
-    )
+    const payload = await verifyJwt(token, null, opts.lxm, opts.getSigningKey)
+
+    if (!audienceMatchesService(payload.aud, opts.serviceDid)) {
+      return {
+        success: false,
+        scheme: 'service',
+        error: 'jwt audience does not match service did',
+      }
+    }
 
     const did = didFromServiceIss(payload.iss)
     if (!did) {
@@ -91,4 +95,15 @@ export function lexiconMethodFromRequest(req: AuthRequest): string | null {
 export function didFromServiceIss(iss: string): string | undefined {
   const did = iss.includes('#') ? iss.slice(0, iss.indexOf('#')) : iss
   return did.startsWith('did:') ? did : undefined
+}
+
+/** Bare notes DID or AT Protocol `did#serviceId` (e.g. did:plc:notes#atproto_pds). */
+export function audienceMatchesService(
+  aud: string,
+  serviceDid: string,
+): boolean {
+  if (aud === serviceDid) return true
+  if (!aud.startsWith(`${serviceDid}#`)) return false
+  const fragment = aud.slice(serviceDid.length + 1)
+  return fragment.length > 0 && !fragment.includes('#')
 }

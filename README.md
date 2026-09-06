@@ -56,7 +56,7 @@ The Community Notes XRPC API accepts these client auth modes:
 
 `getProposals` and feed skeletons are anonymous when the header is omitted. A present but invalid header (including empty `Bearer` or DPoP with empty issuer JWKS) is **401**. `propose` and `vote` always require a valid token.
 
-**Empty JWKS / Bluesky OAuth:** this service does **not** forward the client's notes-bound DPoP proof to PDS `getSession` (`htu` would not match). Clients mint `com.atproto.server.getServiceAuth` at the user's PDS (DPoP proof bound to that PDS URL) with `aud` = `feedGeneratorDid` from `getConfig` and `lxm` = the notes method NSID, then send that JWT as `Bearer`.
+**Empty JWKS / Bluesky OAuth:** this service does **not** forward the client's notes-bound DPoP proof to PDS `getSession` (`htu` would not match). Clients mint `com.atproto.server.getServiceAuth` at the user's PDS (DPoP proof bound to that PDS URL) with `aud` = `feedGeneratorDid` from `getConfig` (bare DID or `did#serviceId`) and `lxm` = the notes method NSID, then send that JWT as `Bearer`.
 
 **Soft-gate for signed-in note bodies:** use **service-auth** (`Bearer` service JWT) so `getProposals` can attach viewer context. Until the bluenotes client does that, omit `Authorization` on `getProposals` only (soft-anon bodies). Do not ship `propose` / `vote` without service-auth, password Bearer, or DPoP+JWKS.
 
