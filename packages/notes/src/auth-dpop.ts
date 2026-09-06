@@ -374,7 +374,9 @@ async function resolvePdsCandidates(
   }
 
   const routingDid =
-    claims?.sub && typeof claims.sub === 'string' && claims.sub.startsWith('did:')
+    claims?.sub &&
+    typeof claims.sub === 'string' &&
+    claims.sub.startsWith('did:')
       ? claims.sub
       : undefined
 

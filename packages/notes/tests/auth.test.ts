@@ -541,7 +541,10 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
       init?: RequestInit,
     ): Promise<Response> => {
       const url = String(input)
-      if (url.includes('oauth-authorization-server') || url.endsWith('/oauth/jwks')) {
+      if (
+        url.includes('oauth-authorization-server') ||
+        url.endsWith('/oauth/jwks')
+      ) {
         if (url.endsWith('/oauth/jwks')) {
           return jsonResponse(200, { keys: [] })
         }
@@ -587,7 +590,7 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     assert.strictEqual(getSessionCalls, 1)
     assert.strictEqual(getProposalsAuthMode(result), 'authed')
   })
-}
+})
 
 function headersFromInit(
   init?: RequestInit,
@@ -596,7 +599,8 @@ function headersFromInit(
   if (!raw) return {}
   if (raw instanceof Headers) {
     return {
-      authorization: raw.get('authorization') ?? raw.get('Authorization') ?? undefined,
+      authorization:
+        raw.get('authorization') ?? raw.get('Authorization') ?? undefined,
       dpop: raw.get('dpop') ?? raw.get('DPoP') ?? undefined,
     }
   }
