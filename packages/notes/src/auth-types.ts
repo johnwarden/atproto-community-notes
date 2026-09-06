@@ -8,7 +8,7 @@ export interface AuthResult {
    * (propose, vote) treat it as 401.
    */
   missing?: boolean
-  scheme?: 'bearer' | 'dpop'
+  scheme?: 'bearer' | 'dpop' | 'service'
 }
 
 /**
@@ -99,4 +99,20 @@ export interface AuthServiceOptions {
   fetchFn?: AuthFetch
   verifyDpop?: DpopVerifier
   publicUrl?: string
+  /**
+   * Notes service DID (`REPO_DID` / getConfig.feedGeneratorDid). Required
+   * to verify AT Protocol service-auth JWTs (`aud` must match).
+   */
+  serviceDid?: string
+  /**
+   * Override DID → atproto signing key resolution for service-auth JWTs.
+   * Defaults to IdResolver.resolveAtprotoKey.
+   */
+  getSigningKey?: (iss: string, forceRefresh: boolean) => Promise<string>
+  /**
+   * Override PDS resolution from a user DID. Defaults to AT Protocol
+   * identity (DID document AtprotoPersonalDataServer). Used for password
+   * session getSession only — never for DPoP replay.
+   */
+  resolvePdsUrl?: (did: string) => Promise<string | null>
 }

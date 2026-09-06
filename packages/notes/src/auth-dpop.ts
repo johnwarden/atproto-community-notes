@@ -27,8 +27,11 @@ export interface DpopVerifyOptions {
  *
  * Crypto and claim checks follow the same rules as @atproto/oauth-provider's
  * DpopManager (jose EmbeddedJWK, typ=dpop+jwt, htm/htu/ath, jkt binding).
- * Access-token signatures are checked against the issuer's JWKS — this service
- * is not the authorization server, so it cannot use OAuthVerifier's local keyset.
+ * Access-token signatures are checked against the issuer's JWKS when keys are
+ * published. Empty JWKS (Bluesky entryway today) is not locally RS-verifiable
+ * and is not treated as "accept any DPoP". This RS cannot replay the
+ * notes-bound DPoP proof to a PDS (htu would fail). Clients should send a
+ * service-auth JWT instead (`auth-service-jwt.ts`).
  */
 export async function verifyDpopBoundAccessToken(
   req: AuthRequest,
@@ -92,41 +95,29 @@ export async function verifyDpopBoundAccessToken(
 
     const jkt = await calculateJwkThumbprint(jwk, 'sha256')
 
-    const tokenClaims = await verifyAccessTokenJwt(accessToken, fetchFn)
+    const verified = await verifyAccessTokenAgainstIssuerJwks(
+      accessToken,
+      jkt,
+      fetchFn,
+    )
 
-    if (!tokenClaims.sub || !tokenClaims.sub.startsWith('did:')) {
-      return {
-        success: false,
-        scheme: 'dpop',
-        error: 'Invalid or missing user DID in access token',
-      }
-    }
-
-    const tokenJkt = tokenClaims.cnf?.jkt
-    if (!tokenJkt || typeof tokenJkt !== 'string') {
-      return {
-        success: false,
-        scheme: 'dpop',
-        error: 'Access token is not DPoP-bound (missing cnf.jkt)',
-      }
-    }
-
-    if (tokenJkt !== jkt) {
-      return {
-        success: false,
-        scheme: 'dpop',
-        error: 'DPoP proof key does not match access token cnf.jkt',
-      }
+    if (!verified.ok) {
+      return dpopFail(verified.error)
     }
 
     log.debug(
-      { did: tokenClaims.sub, htm: method, htu: expectedHtu },
+      {
+        did: verified.did,
+        htm: method,
+        htu: expectedHtu,
+        via: verified.via,
+      },
       'Verified DPoP-bound OAuth access token',
     )
 
     return {
       success: true,
-      did: tokenClaims.sub,
+      did: verified.did,
       scheme: 'dpop',
     }
   } catch (error) {
@@ -151,23 +142,109 @@ interface AccessTokenClaims {
   cnf?: { jkt?: string }
 }
 
-async function verifyAccessTokenJwt(
-  token: string,
-  fetchFn: AuthFetch,
-): Promise<AccessTokenClaims> {
-  const header = decodeProtectedHeader(token)
-  const unsafeClaims = decodeJwt(token) as AccessTokenClaims
+type TokenVerifyResult =
+  | { ok: true; did: string; via: 'jwks' }
+  | { ok: false; error: string }
 
-  if (!unsafeClaims.iss || typeof unsafeClaims.iss !== 'string') {
-    throw new Error('Access token missing iss')
+type LocalJwtVerify =
+  | { kind: 'verified'; claims: AccessTokenClaims }
+  | { kind: 'unverifiable'; reason: string }
+  | { kind: 'invalid'; error: Error }
+
+const EMPTY_JWKS_SERVICE_AUTH_HINT =
+  'Access token is not locally RS-verifiable (issuer JWKS empty or unavailable). This resource server will not replay DPoP to a PDS (htu mismatch). Use a service-auth JWT from com.atproto.server.getServiceAuth (aud=notes service DID, lxm-scoped).'
+
+/**
+ * Local RS verify against issuer JWKS only. Empty JWKS / non-JWT is a hard
+ * reject — never getSession with the notes-bound DPoP proof, never accept-any.
+ */
+async function verifyAccessTokenAgainstIssuerJwks(
+  accessToken: string,
+  jkt: string,
+  fetchFn: AuthFetch,
+): Promise<TokenVerifyResult> {
+  const local = await tryVerifyAccessTokenJwt(accessToken, fetchFn)
+
+  if (local.kind === 'verified') {
+    if (!local.claims.sub || !local.claims.sub.startsWith('did:')) {
+      return { ok: false, error: 'Invalid or missing user DID in access token' }
+    }
+
+    const tokenJkt = local.claims.cnf?.jkt
+    if (!tokenJkt || typeof tokenJkt !== 'string') {
+      return {
+        ok: false,
+        error: 'Access token is not DPoP-bound (missing cnf.jkt)',
+      }
+    }
+
+    if (tokenJkt !== jkt) {
+      return {
+        ok: false,
+        error: 'DPoP proof key does not match access token cnf.jkt',
+      }
+    }
+
+    return { ok: true, did: local.claims.sub, via: 'jwks' }
   }
 
-  const jwk = await resolveIssuerJwk(unsafeClaims.iss, header.kid, fetchFn)
-  const { payload } = await jwtVerify(token, await importJWK(jwk, header.alg), {
-    clockTolerance: DPOP_CLOCK_TOLERANCE_SEC,
-  })
+  if (local.kind === 'invalid') {
+    return {
+      ok: false,
+      error: `Access token JWT verification failed: ${local.error.message}`,
+    }
+  }
 
-  return payload as AccessTokenClaims
+  log.debug(
+    { reason: local.reason },
+    'Access token not locally RS-verifiable; refusing DPoP (use service-auth)',
+  )
+  return { ok: false, error: EMPTY_JWKS_SERVICE_AUTH_HINT }
+}
+
+async function tryVerifyAccessTokenJwt(
+  token: string,
+  fetchFn: AuthFetch,
+): Promise<LocalJwtVerify> {
+  let header: ReturnType<typeof decodeProtectedHeader>
+  let unsafeClaims: AccessTokenClaims
+  try {
+    header = decodeProtectedHeader(token)
+    unsafeClaims = decodeJwt(token) as AccessTokenClaims
+  } catch (error) {
+    return {
+      kind: 'unverifiable',
+      reason: error instanceof Error ? error.message : 'not_jwt',
+    }
+  }
+
+  if (!unsafeClaims.iss || typeof unsafeClaims.iss !== 'string') {
+    return { kind: 'unverifiable', reason: 'missing_iss' }
+  }
+
+  let jwk: Record<string, unknown>
+  try {
+    jwk = await resolveIssuerJwk(unsafeClaims.iss, header.kid, fetchFn)
+  } catch (error) {
+    return {
+      kind: 'unverifiable',
+      reason: error instanceof Error ? error.message : 'jwks_unavailable',
+    }
+  }
+
+  try {
+    const { payload } = await jwtVerify(
+      token,
+      await importJWK(jwk, header.alg),
+      { clockTolerance: DPOP_CLOCK_TOLERANCE_SEC },
+    )
+    return { kind: 'verified', claims: payload as AccessTokenClaims }
+  } catch (error) {
+    return {
+      kind: 'invalid',
+      error: error instanceof Error ? error : new Error('jwt verify failed'),
+    }
+  }
 }
 
 async function resolveIssuerJwk(
