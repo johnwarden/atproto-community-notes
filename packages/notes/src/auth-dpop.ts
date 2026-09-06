@@ -20,17 +20,6 @@ const DPOP_CLOCK_TOLERANCE_SEC = 5
 export interface DpopVerifyOptions {
   fetchFn?: AuthFetch
   publicUrl?: string
-  /**
-   * Resolve a user's PDS from their DID (DID document /
-   * AtprotoPersonalDataServer). Used only as a routing hint when falling
-   * back to getSession; the authenticated DID still comes from getSession.
-   */
-  resolvePdsUrl?: (did: string) => Promise<string | null>
-  /**
-   * Service-configured PDS URL (dev-env / PDS_URL). Last-resort routing
-   * hint when identity resolution and token `iss` are unavailable.
-   */
-  defaultPdsUrl?: string
 }
 
 /**
@@ -39,10 +28,10 @@ export interface DpopVerifyOptions {
  * Crypto and claim checks follow the same rules as @atproto/oauth-provider's
  * DpopManager (jose EmbeddedJWK, typ=dpop+jwt, htm/htu/ath, jkt binding).
  * Access-token signatures are checked against the issuer's JWKS when keys are
- * published. If JWKS is empty (or the token is not locally RS-verifiable),
- * the token is validated at the user's PDS via getSession with the same DPoP
- * headers. This service is not the authorization server, so it cannot use
- * OAuthVerifier's local keyset.
+ * published. Empty JWKS (Bluesky entryway today) is not locally RS-verifiable
+ * and is not treated as "accept any DPoP". This RS cannot replay the
+ * notes-bound DPoP proof to a PDS (htu would fail). Clients should send a
+ * service-auth JWT instead (`auth-service-jwt.ts`).
  */
 export async function verifyDpopBoundAccessToken(
   req: AuthRequest,
@@ -106,14 +95,11 @@ export async function verifyDpopBoundAccessToken(
 
     const jkt = await calculateJwkThumbprint(jwk, 'sha256')
 
-    const verified = await verifyAccessTokenOrPdsSession({
+    const verified = await verifyAccessTokenAgainstIssuerJwks(
       accessToken,
-      dpopProof: dpopHeader,
       jkt,
       fetchFn,
-      resolvePdsUrl: options.resolvePdsUrl,
-      defaultPdsUrl: options.defaultPdsUrl,
-    })
+    )
 
     if (!verified.ok) {
       return dpopFail(verified.error)
@@ -157,7 +143,7 @@ interface AccessTokenClaims {
 }
 
 type TokenVerifyResult =
-  | { ok: true; did: string; via: 'jwks' | 'getSession' }
+  | { ok: true; did: string; via: 'jwks' }
   | { ok: false; error: string }
 
 type LocalJwtVerify =
@@ -165,30 +151,19 @@ type LocalJwtVerify =
   | { kind: 'unverifiable'; reason: string }
   | { kind: 'invalid'; error: Error }
 
+const EMPTY_JWKS_SERVICE_AUTH_HINT =
+  'Access token is not locally RS-verifiable (issuer JWKS empty or unavailable). This resource server will not replay DPoP to a PDS (htu mismatch). Use a service-auth JWT from com.atproto.server.getServiceAuth (aud=notes service DID, lxm-scoped).'
+
 /**
- * Verify the access token as a resource server (issuer JWKS) when possible.
- * If the issuer JWKS is empty or the token is not locally RS-verifiable,
- * validate it at the user's PDS via com.atproto.server.getSession, forwarding
- * `Authorization: DPoP <token>` and the same DPoP proof.
- *
- * The authenticated DID is taken from verified JWKS claims or from getSession
- * — never from an unverified JWT alone. Empty JWKS is not treated as "accept
- * any DPoP"; getSession must succeed.
- *
- * When falling back to getSession, unverified `sub`/`iss` are routing hints
- * only. If those claims include `cnf.jkt`, it must match the DPoP thumbprint.
- * Otherwise DPoP binding is left to the PDS (the proof was already checked
- * locally: EmbeddedJWK, typ, htm/htu/ath/jti).
+ * Local RS verify against issuer JWKS only. Empty JWKS / non-JWT is a hard
+ * reject — never getSession with the notes-bound DPoP proof, never accept-any.
  */
-async function verifyAccessTokenOrPdsSession(opts: {
-  accessToken: string
-  dpopProof: string
-  jkt: string
-  fetchFn: AuthFetch
-  resolvePdsUrl?: (did: string) => Promise<string | null>
-  defaultPdsUrl?: string
-}): Promise<TokenVerifyResult> {
-  const local = await tryVerifyAccessTokenJwt(opts.accessToken, opts.fetchFn)
+async function verifyAccessTokenAgainstIssuerJwks(
+  accessToken: string,
+  jkt: string,
+  fetchFn: AuthFetch,
+): Promise<TokenVerifyResult> {
+  const local = await tryVerifyAccessTokenJwt(accessToken, fetchFn)
 
   if (local.kind === 'verified') {
     if (!local.claims.sub || !local.claims.sub.startsWith('did:')) {
@@ -203,7 +178,7 @@ async function verifyAccessTokenOrPdsSession(opts: {
       }
     }
 
-    if (tokenJkt !== opts.jkt) {
+    if (tokenJkt !== jkt) {
       return {
         ok: false,
         error: 'DPoP proof key does not match access token cnf.jkt',
@@ -222,10 +197,9 @@ async function verifyAccessTokenOrPdsSession(opts: {
 
   log.debug(
     { reason: local.reason },
-    'Access token not locally RS-verifiable; validating via PDS getSession',
+    'Access token not locally RS-verifiable; refusing DPoP (use service-auth)',
   )
-
-  return validateAccessTokenViaGetSession(opts)
+  return { ok: false, error: EMPTY_JWKS_SERVICE_AUTH_HINT }
 }
 
 async function tryVerifyAccessTokenJwt(
@@ -270,175 +244,6 @@ async function tryVerifyAccessTokenJwt(
       kind: 'invalid',
       error: error instanceof Error ? error : new Error('jwt verify failed'),
     }
-  }
-}
-
-/**
- * PDS getSession fallback. DID is taken from the PDS response. Token claims
- * are not trusted for identity; they are only used to find which PDS to call
- * and (when present) to check cnf.jkt against the already-verified DPoP key.
- */
-async function validateAccessTokenViaGetSession(opts: {
-  accessToken: string
-  dpopProof: string
-  jkt: string
-  fetchFn: AuthFetch
-  resolvePdsUrl?: (did: string) => Promise<string | null>
-  defaultPdsUrl?: string
-}): Promise<TokenVerifyResult> {
-  const cnfError = optionalCnfJktMismatch(opts.accessToken, opts.jkt)
-  if (cnfError) {
-    return { ok: false, error: cnfError }
-  }
-
-  const candidates = await resolvePdsCandidates(
-    opts.accessToken,
-    opts.resolvePdsUrl,
-    opts.defaultPdsUrl,
-  )
-
-  if (candidates.length === 0) {
-    return {
-      ok: false,
-      error:
-        'Cannot resolve PDS URL for DPoP access token (empty issuer JWKS; no DID/identity, iss, or default PDS)',
-    }
-  }
-
-  let lastError = 'PDS getSession rejected DPoP access token'
-  for (const pdsUrl of candidates) {
-    const session = await callPdsGetSessionDpop(
-      pdsUrl,
-      opts.accessToken,
-      opts.dpopProof,
-      opts.fetchFn,
-    )
-    if (session.ok) {
-      log.debug(
-        { did: session.did, pdsUrl },
-        'Validated DPoP access token via PDS getSession',
-      )
-      return { ok: true, did: session.did, via: 'getSession' }
-    }
-    lastError = session.error
-  }
-
-  return { ok: false, error: lastError }
-}
-
-/**
- * If the token is a JWT and advertises cnf.jkt, require it to match the DPoP
- * thumbprint. Missing/unreadable claims are OK: the PDS enforces DPoP binding
- * on getSession, and this resource server already verified the proof.
- */
-function optionalCnfJktMismatch(token: string, jkt: string): string | null {
-  try {
-    const claims = decodeJwt(token) as AccessTokenClaims
-    const tokenJkt = claims.cnf?.jkt
-    if (tokenJkt && tokenJkt !== jkt) {
-      return 'DPoP proof key does not match access token cnf.jkt'
-    }
-  } catch {
-    // Opaque / non-JWT: rely on PDS DPoP binding.
-  }
-  return null
-}
-
-async function resolvePdsCandidates(
-  accessToken: string,
-  resolvePdsUrl?: (did: string) => Promise<string | null>,
-  defaultPdsUrl?: string,
-): Promise<string[]> {
-  const candidates: string[] = []
-  const seen = new Set<string>()
-
-  const add = (url: string | null | undefined) => {
-    if (!url) return
-    try {
-      const parsed = new URL(url)
-      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return
-      const normalized = parsed.href.replace(/\/+$/, '')
-      if (seen.has(normalized)) return
-      seen.add(normalized)
-      candidates.push(normalized)
-    } catch {
-      // skip invalid URLs
-    }
-  }
-
-  let claims: AccessTokenClaims | undefined
-  try {
-    claims = decodeJwt(accessToken) as AccessTokenClaims
-  } catch {
-    // opaque token — identity resolution needs an explicit DID resolver default
-  }
-
-  const routingDid =
-    claims?.sub &&
-    typeof claims.sub === 'string' &&
-    claims.sub.startsWith('did:')
-      ? claims.sub
-      : undefined
-
-  if (routingDid && resolvePdsUrl) {
-    try {
-      add(await resolvePdsUrl(routingDid))
-    } catch (error) {
-      log.warn(
-        {
-          did: routingDid,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-        'DID/identity PDS resolution failed; trying token iss / default PDS',
-      )
-    }
-  }
-
-  if (claims?.iss && typeof claims.iss === 'string') {
-    add(claims.iss)
-  }
-
-  add(defaultPdsUrl)
-  return candidates
-}
-
-async function callPdsGetSessionDpop(
-  pdsUrl: string,
-  accessToken: string,
-  dpopProof: string,
-  fetchFn: AuthFetch,
-): Promise<{ ok: true; did: string } | { ok: false; error: string }> {
-  try {
-    const response = await fetchFn(
-      `${pdsUrl}/xrpc/com.atproto.server.getSession`,
-      {
-        method: 'GET',
-        headers: {
-          Authorization: `DPoP ${accessToken}`,
-          DPoP: dpopProof,
-          'Content-Type': 'application/json',
-        },
-      },
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      return {
-        ok: false,
-        error: `PDS getSession returned ${response.status}: ${errorText}`,
-      }
-    }
-
-    const data = (await response.json()) as { did?: string }
-    if (!data.did || !data.did.startsWith('did:')) {
-      return { ok: false, error: 'No DID in PDS getSession response' }
-    }
-
-    return { ok: true, did: data.did }
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error'
-    return { ok: false, error: `Failed to contact PDS: ${errorMessage}` }
   }
 }
 

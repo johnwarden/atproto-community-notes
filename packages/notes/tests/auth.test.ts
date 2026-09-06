@@ -7,6 +7,8 @@ import {
   exportJWK,
   generateKeyPair,
 } from 'jose'
+import { Secp256k1Keypair } from '@atproto/crypto'
+import { createServiceJwt } from '@atproto/xrpc-server'
 import { AuthService, parseAuthorizationHeader } from '../src/auth'
 import { buildRequestUrl, verifyDpopBoundAccessToken } from '../src/auth-dpop'
 import type { AuthRequest, AuthResult } from '../src/auth-types'
@@ -298,11 +300,9 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     assert.match(result.error || '', /DPoP proof header is required/)
   })
 
-  test('empty issuer JWKS validates via PDS getSession (DID from session)', async () => {
+  test('empty issuer JWKS rejects DPoP without getSession (use service-auth)', async () => {
     const jwtDid = 'did:plc:jwt-alice'
-    const sessionDid = 'did:plc:session-alice'
     const issuer = 'https://bsky.social'
-    const resolvedPds = 'https://pds.custom.example'
     const path = '/xrpc/org.opencommunitynotes.getProposals'
     const { accessToken, dpopProof } = await mintDpopAccess(
       jwtDid,
@@ -312,79 +312,6 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     )
 
     let getSessionCalls = 0
-    const fetched: string[] = []
-    const fetchFn = async (
-      input: string | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
-      const url = String(input)
-      fetched.push(url)
-      if (url.includes('oauth-authorization-server')) {
-        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
-      }
-      if (url.endsWith('/oauth/jwks')) {
-        return jsonResponse(200, { keys: [] })
-      }
-      if (url.includes('com.atproto.server.getSession')) {
-        getSessionCalls += 1
-        assert.strictEqual(
-          url,
-          `${resolvedPds}/xrpc/com.atproto.server.getSession`,
-        )
-        assert.strictEqual(init?.method, 'GET')
-        const headers = headersFromInit(init)
-        assert.strictEqual(headers.authorization, `DPoP ${accessToken}`)
-        assert.strictEqual(headers.dpop, dpopProof)
-        return jsonResponse(200, { did: sessionDid })
-      }
-      throw new Error(`Unexpected fetch: ${url}`)
-    }
-
-    const resolveCalls: string[] = []
-    const result = await verifyDpopBoundAccessToken(
-      {
-        headers: {
-          authorization: `DPoP ${accessToken}`,
-          dpop: dpopProof,
-          host: 'notes.test',
-        },
-        method: 'GET',
-        url: path,
-        protocol: 'http',
-      },
-      accessToken,
-      {
-        fetchFn,
-        resolvePdsUrl: async (did) => {
-          resolveCalls.push(did)
-          return resolvedPds
-        },
-        defaultPdsUrl: 'https://should-not-use.example',
-      },
-    )
-
-    assert.strictEqual(result.success, true, result.error)
-    assert.strictEqual(result.did, sessionDid)
-    assert.notStrictEqual(result.did, jwtDid)
-    assert.strictEqual(result.scheme, 'dpop')
-    assert.notStrictEqual(result.missing, true)
-    assert.strictEqual(getProposalsAuthMode(result), 'authed')
-    assert.strictEqual(getSessionCalls, 1)
-    assert.deepStrictEqual(resolveCalls, [jwtDid])
-    assert.ok(fetched.some((url) => url.endsWith('/oauth/jwks')))
-  })
-
-  test('empty issuer JWKS + getSession 401 rejects (not soft-anon)', async () => {
-    const did = 'did:plc:rejected-alice'
-    const issuer = 'https://bsky.social'
-    const path = '/xrpc/org.opencommunitynotes.getProposals'
-    const { accessToken, dpopProof } = await mintDpopAccess(
-      did,
-      issuer,
-      'GET',
-      `http://notes.test${path}`,
-    )
-
     const fetchFn = async (input: string | URL): Promise<Response> => {
       const url = String(input)
       if (url.includes('oauth-authorization-server')) {
@@ -393,8 +320,9 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
       if (url.endsWith('/oauth/jwks')) {
         return jsonResponse(200, { keys: [] })
       }
-      if (url.includes('com.atproto.server.getSession')) {
-        return new Response('AuthenticationRequired', { status: 401 })
+      if (url.includes('getSession')) {
+        getSessionCalls += 1
+        throw new Error('must not replay DPoP to PDS getSession')
       }
       throw new Error(`Unexpected fetch: ${url}`)
     }
@@ -411,13 +339,48 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
         protocol: 'http',
       },
       accessToken,
-      { fetchFn, defaultPdsUrl: issuer },
+      { fetchFn },
     )
 
     assert.strictEqual(result.success, false)
     assert.notStrictEqual(result.missing, true)
     assert.strictEqual(getProposalsAuthMode(result), 'reject')
-    assert.match(result.error || '', /getSession returned 401/)
+    assert.strictEqual(getSessionCalls, 0)
+    assert.match(result.error || '', /service-auth JWT/)
+    assert.doesNotMatch(result.error || '', /getSession/)
+  })
+
+  test('empty JWKS still verifies DPoP proof (htu mismatch before JWKS fallback)', async () => {
+    const did = 'did:plc:htu-alice'
+    const issuer = 'https://bsky.social'
+    const { accessToken, dpopProof } = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      'https://api.bluenotes.social/xrpc/org.opencommunitynotes.getProposals',
+    )
+
+    const fetchFn = async (): Promise<Response> => {
+      throw new Error('JWKS/getSession must not run when DPoP proof fails')
+    }
+
+    const result = await verifyDpopBoundAccessToken(
+      {
+        headers: {
+          authorization: `DPoP ${accessToken}`,
+          dpop: dpopProof,
+          host: 'notes.test',
+        },
+        method: 'GET',
+        url: '/xrpc/org.opencommunitynotes.getProposals',
+        protocol: 'http',
+      },
+      accessToken,
+      { fetchFn },
+    )
+
+    assert.strictEqual(result.success, false)
+    assert.match(result.error || '', /htu/)
   })
 
   test('populated JWKS path does not call getSession', async () => {
@@ -456,13 +419,7 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
         protocol: 'http',
       },
       accessToken,
-      {
-        fetchFn,
-        resolvePdsUrl: async () => {
-          throw new Error('DID resolution must not run on JWKS path')
-        },
-        defaultPdsUrl: 'https://unused.example',
-      },
+      { fetchFn },
     )
 
     assert.strictEqual(result.success, true, result.error)
@@ -513,7 +470,7 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
         protocol: 'http',
       },
       accessToken,
-      { fetchFn, defaultPdsUrl: issuer },
+      { fetchFn },
     )
 
     assert.strictEqual(result.success, false)
@@ -522,11 +479,9 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     assert.match(result.error || '', /JWT verification failed/)
   })
 
-  test('AuthService empty JWKS uses identity PDS then getSession', async () => {
+  test('AuthService empty JWKS DPoP rejects without getSession', async () => {
     const jwtDid = 'did:plc:auth-service-alice'
-    const sessionDid = 'did:plc:from-session'
     const issuer = 'https://bsky.social'
-    const identityPds = 'https://morel.example'
     const path = '/xrpc/org.opencommunitynotes.getProposals'
     const { accessToken, dpopProof } = await mintDpopAccess(
       jwtDid,
@@ -536,30 +491,17 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     )
 
     let getSessionCalls = 0
-    const fetchFn = async (
-      input: string | URL,
-      init?: RequestInit,
-    ): Promise<Response> => {
+    const fetchFn = async (input: string | URL): Promise<Response> => {
       const url = String(input)
-      if (
-        url.includes('oauth-authorization-server') ||
-        url.endsWith('/oauth/jwks')
-      ) {
-        if (url.endsWith('/oauth/jwks')) {
-          return jsonResponse(200, { keys: [] })
-        }
+      if (url.includes('oauth-authorization-server')) {
         return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
       }
-      if (url.includes('com.atproto.server.getSession')) {
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [] })
+      }
+      if (url.includes('getSession')) {
         getSessionCalls += 1
-        assert.strictEqual(
-          url,
-          `${identityPds}/xrpc/com.atproto.server.getSession`,
-        )
-        const headers = headersFromInit(init)
-        assert.strictEqual(headers.authorization, `DPoP ${accessToken}`)
-        assert.strictEqual(headers.dpop, dpopProof)
-        return jsonResponse(200, { did: sessionDid })
+        throw new Error('must not replay DPoP to PDS getSession')
       }
       throw new Error(`Unexpected fetch: ${url}`)
     }
@@ -567,10 +509,7 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     const auth = new AuthService('http://localhost:2583', {
       fetchFn,
       publicUrl: 'https://api.bluenotes.social',
-      resolvePdsUrl: async (did) => {
-        assert.strictEqual(did, jwtDid)
-        return identityPds
-      },
+      serviceDid: 'did:plc:notes-service',
     })
 
     const result = await auth.verifyAuthHeader({
@@ -584,38 +523,154 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
       protocol: 'http',
     })
 
-    assert.strictEqual(result.success, true, result.error)
-    assert.strictEqual(result.did, sessionDid)
-    assert.strictEqual(result.scheme, 'dpop')
-    assert.strictEqual(getSessionCalls, 1)
-    assert.strictEqual(getProposalsAuthMode(result), 'authed')
+    assert.strictEqual(result.success, false)
+    assert.notStrictEqual(result.missing, true)
+    assert.strictEqual(getSessionCalls, 0)
+    assert.strictEqual(getProposalsAuthMode(result), 'reject')
+    assert.match(result.error || '', /service-auth JWT/)
   })
 })
 
-function headersFromInit(
-  init?: RequestInit,
-): Record<string, string | undefined> {
-  const raw = init?.headers
-  if (!raw) return {}
-  if (raw instanceof Headers) {
-    return {
-      authorization:
-        raw.get('authorization') ?? raw.get('Authorization') ?? undefined,
-      dpop: raw.get('dpop') ?? raw.get('DPoP') ?? undefined,
-    }
-  }
-  if (Array.isArray(raw)) {
-    const map: Record<string, string | undefined> = {}
-    for (const [key, value] of raw) {
-      map[key.toLowerCase()] = value
-    }
-    return map
-  }
-  const map: Record<string, string | undefined> = {}
-  for (const [key, value] of Object.entries(raw)) {
-    map[key.toLowerCase()] = value
-  }
-  return map
+describe('service-auth JWT (getServiceAuth)', () => {
+  const serviceDid = 'did:plc:notes-service'
+  const userDid = 'did:plc:service-alice'
+  const lxm = 'org.opencommunitynotes.getProposals'
+  const path = `/xrpc/${lxm}`
+
+  test('valid service-auth JWT authenticates (DID from iss)', async () => {
+    const { token, didKey } = await mintServiceAuth(userDid, serviceDid, lxm)
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => didKey,
+      fetchFn: async () => {
+        throw new Error('PDS getSession must not run for service-auth')
+      },
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, userDid)
+    assert.strictEqual(result.scheme, 'service')
+    assert.strictEqual(getProposalsAuthMode(result), 'authed')
+  })
+
+  test('wrong aud is rejected', async () => {
+    const { token, didKey } = await mintServiceAuth(
+      userDid,
+      'did:plc:other-service',
+      lxm,
+    )
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => didKey,
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, false)
+    assert.notStrictEqual(result.missing, true)
+    assert.match(result.error || '', /audience|aud/i)
+  })
+
+  test('wrong lxm is rejected (propose token on getProposals)', async () => {
+    const { token, didKey } = await mintServiceAuth(
+      userDid,
+      serviceDid,
+      'org.opencommunitynotes.propose',
+    )
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => didKey,
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, false)
+    assert.match(result.error || '', /lxm|lexicon method/i)
+  })
+
+  test('garbage / unsigned JWT with DID iss is rejected', async () => {
+    const garbage = fakeJwt({
+      iss: userDid,
+      aud: serviceDid,
+      lxm,
+      exp: Math.floor(Date.now() / 1000) + 60,
+    })
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => 'did:key:zNotARealKey',
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${garbage}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, false)
+    assert.notStrictEqual(result.missing, true)
+    assert.strictEqual(getProposalsAuthMode(result), 'reject')
+  })
+
+  test('expired service-auth JWT is rejected', async () => {
+    const { token, didKey } = await mintServiceAuth(userDid, serviceDid, lxm, {
+      exp: Math.floor(Date.now() / 1000) - 30,
+    })
+    const auth = new AuthService('http://pds.test', {
+      serviceDid,
+      getSigningKey: async () => didKey,
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: { authorization: `Bearer ${token}` },
+      method: 'GET',
+      url: path,
+    })
+
+    assert.strictEqual(result.success, false)
+    assert.match(result.error || '', /expired/i)
+  })
+
+  test('propose/vote required-auth: missing header is not success', async () => {
+    const auth = new AuthService('http://pds.test', { serviceDid })
+    const result = await auth.verifyAuthHeader({
+      headers: {},
+      method: 'POST',
+      url: '/xrpc/org.opencommunitynotes.propose',
+    })
+    assert.strictEqual(result.success, false)
+    assert.strictEqual(result.missing, true)
+  })
+})
+
+async function mintServiceAuth(
+  iss: string,
+  aud: string,
+  lxm: string,
+  opts: { exp?: number } = {},
+) {
+  const keypair = await Secp256k1Keypair.create()
+  const token = await createServiceJwt({
+    iss,
+    aud,
+    lxm,
+    keypair,
+    exp: opts.exp,
+  })
+  return { token, didKey: keypair.did() }
 }
 
 function headerOrThrow(req: AuthRequest, name: string): string {

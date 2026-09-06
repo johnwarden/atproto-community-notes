@@ -88,7 +88,8 @@ If you are developing a frontend that consumes this backend, you can start the b
 ### Supported auth modes
 
 - **Password session (existing clients):** `Authorization: Bearer <accessJwt>` — verified via the user's PDS `com.atproto.server.getSession`.
-- **OAuth / DPoP:** `Authorization: DPoP <access_token>` plus a `DPoP` proof header — DPoP proof is always verified (EmbeddedJWK, typ, htm/htu/ath/jti). Access token is verified against issuer JWKS when keys are published; if JWKS is empty or the token is not RS-verifiable, the user's PDS `com.atproto.server.getSession` is called with the same DPoP headers. DID comes from getSession (or verified JWKS claims), not from an unverified JWT alone (`packages/notes/src/auth-dpop.ts`).
+- **OAuth / DPoP:** `Authorization: DPoP <access_token>` plus a `DPoP` proof header — proof is always verified (EmbeddedJWK, typ, htm/htu/ath/jti). Access token is verified against issuer JWKS when keys are published. Empty JWKS is a hard reject (not accept-any, not getSession DPoP replay). Use service-auth instead (`packages/notes/src/auth-dpop.ts`).
+- **Service-auth (Bluesky / empty JWKS):** `Authorization: Bearer <jwt>` from `com.atproto.server.getServiceAuth` with `aud` = notes `REPO_DID` / `getConfig.feedGeneratorDid` and `lxm` = the XRPC method. Verified locally (`packages/notes/src/auth-service-jwt.ts`). Client DPoP for minting is bound to the **PDS** URL, never reused at notes.
 - **Anonymous:** omit `Authorization` on `getProposals` and feed skeletons (200). Present-but-invalid auth, including empty `Bearer`, is 401. `propose` / `vote` always require auth.
 - **`PUBLIC_URL`:** public base URL of this notes service (e.g. `https://api.bluenotes.social`). DPoP `htu` is compared against this origin, not `PDS_URL` or the in-container listen address. Required behind Fly/proxy; optional locally.
 - **DPoP `jti`:** presence is required. There is intentionally no replay store in v1.

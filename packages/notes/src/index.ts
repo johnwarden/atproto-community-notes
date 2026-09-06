@@ -106,6 +106,7 @@ export class NotesService {
 
     const auth = new AuthService(this.config.pdsUrl, {
       publicUrl: this.config.publicUrl,
+      serviceDid: this.config.repoAccount.did,
     })
     const authMiddleware = createAuthMiddleware(auth)
 

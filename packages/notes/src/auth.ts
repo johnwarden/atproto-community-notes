@@ -1,6 +1,11 @@
 import { IdResolver } from '@atproto/identity'
 import { verifyDpopBoundAccessToken } from './auth-dpop'
 import {
+  lexiconMethodFromRequest,
+  looksLikeServiceAuthJwt,
+  verifyServiceAuthJwt,
+} from './auth-service-jwt'
+import {
   AuthFetch,
   AuthRequest,
   AuthResult,
@@ -67,6 +72,11 @@ export class AuthService {
   private fetchFn: AuthFetch
   private verifyDpopFn?: DpopVerifier
   private publicUrl?: string
+  private serviceDid?: string
+  private getSigningKeyFn: (
+    iss: string,
+    forceRefresh: boolean,
+  ) => Promise<string>
   private resolvePdsUrlFn: (did: string) => Promise<string | null>
 
   constructor(pdsUrl?: string, options: AuthServiceOptions = {}) {
@@ -75,6 +85,10 @@ export class AuthService {
     this.fetchFn = options.fetchFn || fetch
     this.verifyDpopFn = options.verifyDpop
     this.publicUrl = options.publicUrl
+    this.serviceDid = options.serviceDid
+    this.getSigningKeyFn =
+      options.getSigningKey ??
+      ((iss, forceRefresh) => this.resolveAtprotoSigningKey(iss, forceRefresh))
     this.resolvePdsUrlFn =
       options.resolvePdsUrl ?? ((did) => this.resolvePdsFromDid(did))
 
@@ -108,6 +122,9 @@ export class AuthService {
     }
 
     if (parsed.scheme === 'bearer') {
+      if (looksLikeServiceAuthJwt(parsed.token)) {
+        return this.verifyServiceAuthRequest(req, parsed.token)
+      }
       return this.verifyPasswordSession(parsed.token)
     }
 
@@ -155,9 +172,44 @@ export class AuthService {
     return verifyDpopBoundAccessToken(req, accessToken, {
       fetchFn: this.fetchFn,
       publicUrl: this.publicUrl,
-      resolvePdsUrl: (did) => this.resolvePdsUrlFn(did),
-      defaultPdsUrl: this.pdsUrl,
     })
+  }
+
+  private async verifyServiceAuthRequest(
+    req: AuthRequest,
+    token: string,
+  ): Promise<AuthResult> {
+    if (!this.serviceDid) {
+      return {
+        success: false,
+        scheme: 'service',
+        error:
+          'Notes service DID is not configured; cannot verify service-auth JWT',
+      }
+    }
+
+    const lxm = lexiconMethodFromRequest(req)
+    if (!lxm) {
+      return {
+        success: false,
+        scheme: 'service',
+        error: 'Cannot determine lexicon method (lxm) from request URL',
+      }
+    }
+
+    return verifyServiceAuthJwt(token, {
+      serviceDid: this.serviceDid,
+      lxm,
+      getSigningKey: this.getSigningKeyFn,
+    })
+  }
+
+  private async resolveAtprotoSigningKey(
+    iss: string,
+    forceRefresh: boolean,
+  ): Promise<string> {
+    const did = iss.includes('#') ? iss.slice(0, iss.indexOf('#')) : iss
+    return this.idResolver.did.resolveAtprotoKey(did, forceRefresh)
   }
 
   private async verifyPasswordSession(token: string): Promise<AuthResult> {
@@ -220,7 +272,7 @@ export class AuthService {
           )
         } else {
           // In production, resolve the user's DID to find their PDS
-          const resolvedPdsUrl = await this.resolvePdsFromDid(userDid)
+          const resolvedPdsUrl = await this.resolvePdsUrlFn(userDid)
           if (resolvedPdsUrl) {
             pdsUrl = resolvedPdsUrl
             log.debug(
