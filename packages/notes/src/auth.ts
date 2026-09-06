@@ -67,6 +67,7 @@ export class AuthService {
   private fetchFn: AuthFetch
   private verifyDpopFn?: DpopVerifier
   private publicUrl?: string
+  private resolvePdsUrlFn: (did: string) => Promise<string | null>
 
   constructor(pdsUrl?: string, options: AuthServiceOptions = {}) {
     // Use provided PDS URL or default to localhost:2583 for dev-env compatibility
@@ -74,6 +75,8 @@ export class AuthService {
     this.fetchFn = options.fetchFn || fetch
     this.verifyDpopFn = options.verifyDpop
     this.publicUrl = options.publicUrl
+    this.resolvePdsUrlFn =
+      options.resolvePdsUrl ?? ((did) => this.resolvePdsFromDid(did))
 
     // Configure IdResolver with production PLC URL since DID resolution
     // only happens for production tokens (dev tokens have iss field)
@@ -152,6 +155,8 @@ export class AuthService {
     return verifyDpopBoundAccessToken(req, accessToken, {
       fetchFn: this.fetchFn,
       publicUrl: this.publicUrl,
+      resolvePdsUrl: (did) => this.resolvePdsUrlFn(did),
+      defaultPdsUrl: this.pdsUrl,
     })
   }
 

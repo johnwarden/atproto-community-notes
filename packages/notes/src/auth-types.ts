@@ -99,4 +99,9 @@ export interface AuthServiceOptions {
   fetchFn?: AuthFetch
   verifyDpop?: DpopVerifier
   publicUrl?: string
+  /**
+   * Override PDS resolution from a user DID. Defaults to AT Protocol
+   * identity (DID document AtprotoPersonalDataServer).
+   */
+  resolvePdsUrl?: (did: string) => Promise<string | null>
 }

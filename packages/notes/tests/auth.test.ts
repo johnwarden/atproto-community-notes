@@ -297,7 +297,322 @@ describe('verifyDpopBoundAccessToken (jose)', () => {
     assert.strictEqual(result.success, false)
     assert.match(result.error || '', /DPoP proof header is required/)
   })
-})
+
+  test('empty issuer JWKS validates via PDS getSession (DID from session)', async () => {
+    const jwtDid = 'did:plc:jwt-alice'
+    const sessionDid = 'did:plc:session-alice'
+    const issuer = 'https://bsky.social'
+    const resolvedPds = 'https://pds.custom.example'
+    const path = '/xrpc/org.opencommunitynotes.getProposals'
+    const { accessToken, dpopProof } = await mintDpopAccess(
+      jwtDid,
+      issuer,
+      'GET',
+      `http://notes.test${path}`,
+    )
+
+    let getSessionCalls = 0
+    const fetched: string[] = []
+    const fetchFn = async (
+      input: string | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = String(input)
+      fetched.push(url)
+      if (url.includes('oauth-authorization-server')) {
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [] })
+      }
+      if (url.includes('com.atproto.server.getSession')) {
+        getSessionCalls += 1
+        assert.strictEqual(
+          url,
+          `${resolvedPds}/xrpc/com.atproto.server.getSession`,
+        )
+        assert.strictEqual(init?.method, 'GET')
+        const headers = headersFromInit(init)
+        assert.strictEqual(headers.authorization, `DPoP ${accessToken}`)
+        assert.strictEqual(headers.dpop, dpopProof)
+        return jsonResponse(200, { did: sessionDid })
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const resolveCalls: string[] = []
+    const result = await verifyDpopBoundAccessToken(
+      {
+        headers: {
+          authorization: `DPoP ${accessToken}`,
+          dpop: dpopProof,
+          host: 'notes.test',
+        },
+        method: 'GET',
+        url: path,
+        protocol: 'http',
+      },
+      accessToken,
+      {
+        fetchFn,
+        resolvePdsUrl: async (did) => {
+          resolveCalls.push(did)
+          return resolvedPds
+        },
+        defaultPdsUrl: 'https://should-not-use.example',
+      },
+    )
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, sessionDid)
+    assert.notStrictEqual(result.did, jwtDid)
+    assert.strictEqual(result.scheme, 'dpop')
+    assert.notStrictEqual(result.missing, true)
+    assert.strictEqual(getProposalsAuthMode(result), 'authed')
+    assert.strictEqual(getSessionCalls, 1)
+    assert.deepStrictEqual(resolveCalls, [jwtDid])
+    assert.ok(fetched.some((url) => url.endsWith('/oauth/jwks')))
+  })
+
+  test('empty issuer JWKS + getSession 401 rejects (not soft-anon)', async () => {
+    const did = 'did:plc:rejected-alice'
+    const issuer = 'https://bsky.social'
+    const path = '/xrpc/org.opencommunitynotes.getProposals'
+    const { accessToken, dpopProof } = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      `http://notes.test${path}`,
+    )
+
+    const fetchFn = async (input: string | URL): Promise<Response> => {
+      const url = String(input)
+      if (url.includes('oauth-authorization-server')) {
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [] })
+      }
+      if (url.includes('com.atproto.server.getSession')) {
+        return new Response('AuthenticationRequired', { status: 401 })
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const result = await verifyDpopBoundAccessToken(
+      {
+        headers: {
+          authorization: `DPoP ${accessToken}`,
+          dpop: dpopProof,
+          host: 'notes.test',
+        },
+        method: 'GET',
+        url: path,
+        protocol: 'http',
+      },
+      accessToken,
+      { fetchFn, defaultPdsUrl: issuer },
+    )
+
+    assert.strictEqual(result.success, false)
+    assert.notStrictEqual(result.missing, true)
+    assert.strictEqual(getProposalsAuthMode(result), 'reject')
+    assert.match(result.error || '', /getSession returned 401/)
+  })
+
+  test('populated JWKS path does not call getSession', async () => {
+    const did = 'did:plc:jwks-only-alice'
+    const issuer = 'https://pds.example'
+    const { accessToken, dpopProof, asJwk } = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      'http://notes.test/xrpc/org.opencommunitynotes.getProposals',
+    )
+
+    const fetchFn = async (input: string | URL): Promise<Response> => {
+      const url = String(input)
+      if (url.includes('oauth-authorization-server')) {
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [asJwk] })
+      }
+      if (url.includes('getSession')) {
+        throw new Error('getSession must not run when issuer JWKS has keys')
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const result = await verifyDpopBoundAccessToken(
+      {
+        headers: {
+          authorization: `DPoP ${accessToken}`,
+          dpop: dpopProof,
+          host: 'notes.test',
+        },
+        method: 'GET',
+        url: '/xrpc/org.opencommunitynotes.getProposals',
+        protocol: 'http',
+      },
+      accessToken,
+      {
+        fetchFn,
+        resolvePdsUrl: async () => {
+          throw new Error('DID resolution must not run on JWKS path')
+        },
+        defaultPdsUrl: 'https://unused.example',
+      },
+    )
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, did)
+  })
+
+  test('populated JWKS with invalid signature rejects without getSession', async () => {
+    const did = 'did:plc:bad-sig-alice'
+    const issuer = 'https://pds.example'
+    const { accessToken, dpopProof } = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      'http://notes.test/xrpc/org.opencommunitynotes.getProposals',
+    )
+    const other = await mintDpopAccess(
+      did,
+      issuer,
+      'GET',
+      'http://notes.test/xrpc/org.opencommunitynotes.getProposals',
+    )
+
+    let getSessionCalls = 0
+    const fetchFn = async (input: string | URL): Promise<Response> => {
+      const url = String(input)
+      if (url.includes('oauth-authorization-server')) {
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.endsWith('/oauth/jwks')) {
+        return jsonResponse(200, { keys: [other.asJwk] })
+      }
+      if (url.includes('getSession')) {
+        getSessionCalls += 1
+        throw new Error('getSession must not run when JWKS verify fails')
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const result = await verifyDpopBoundAccessToken(
+      {
+        headers: {
+          authorization: `DPoP ${accessToken}`,
+          dpop: dpopProof,
+          host: 'notes.test',
+        },
+        method: 'GET',
+        url: '/xrpc/org.opencommunitynotes.getProposals',
+        protocol: 'http',
+      },
+      accessToken,
+      { fetchFn, defaultPdsUrl: issuer },
+    )
+
+    assert.strictEqual(result.success, false)
+    assert.notStrictEqual(result.missing, true)
+    assert.strictEqual(getSessionCalls, 0)
+    assert.match(result.error || '', /JWT verification failed/)
+  })
+
+  test('AuthService empty JWKS uses identity PDS then getSession', async () => {
+    const jwtDid = 'did:plc:auth-service-alice'
+    const sessionDid = 'did:plc:from-session'
+    const issuer = 'https://bsky.social'
+    const identityPds = 'https://morel.example'
+    const path = '/xrpc/org.opencommunitynotes.getProposals'
+    const { accessToken, dpopProof } = await mintDpopAccess(
+      jwtDid,
+      issuer,
+      'GET',
+      `https://api.bluenotes.social${path}`,
+    )
+
+    let getSessionCalls = 0
+    const fetchFn = async (
+      input: string | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = String(input)
+      if (url.includes('oauth-authorization-server') || url.endsWith('/oauth/jwks')) {
+        if (url.endsWith('/oauth/jwks')) {
+          return jsonResponse(200, { keys: [] })
+        }
+        return jsonResponse(200, { jwks_uri: `${issuer}/oauth/jwks` })
+      }
+      if (url.includes('com.atproto.server.getSession')) {
+        getSessionCalls += 1
+        assert.strictEqual(
+          url,
+          `${identityPds}/xrpc/com.atproto.server.getSession`,
+        )
+        const headers = headersFromInit(init)
+        assert.strictEqual(headers.authorization, `DPoP ${accessToken}`)
+        assert.strictEqual(headers.dpop, dpopProof)
+        return jsonResponse(200, { did: sessionDid })
+      }
+      throw new Error(`Unexpected fetch: ${url}`)
+    }
+
+    const auth = new AuthService('http://localhost:2583', {
+      fetchFn,
+      publicUrl: 'https://api.bluenotes.social',
+      resolvePdsUrl: async (did) => {
+        assert.strictEqual(did, jwtDid)
+        return identityPds
+      },
+    })
+
+    const result = await auth.verifyAuthHeader({
+      headers: {
+        authorization: `DPoP ${accessToken}`,
+        dpop: dpopProof,
+        host: '127.0.0.1:8080',
+      },
+      method: 'GET',
+      url: path,
+      protocol: 'http',
+    })
+
+    assert.strictEqual(result.success, true, result.error)
+    assert.strictEqual(result.did, sessionDid)
+    assert.strictEqual(result.scheme, 'dpop')
+    assert.strictEqual(getSessionCalls, 1)
+    assert.strictEqual(getProposalsAuthMode(result), 'authed')
+  })
+}
+
+function headersFromInit(
+  init?: RequestInit,
+): Record<string, string | undefined> {
+  const raw = init?.headers
+  if (!raw) return {}
+  if (raw instanceof Headers) {
+    return {
+      authorization: raw.get('authorization') ?? raw.get('Authorization') ?? undefined,
+      dpop: raw.get('dpop') ?? raw.get('DPoP') ?? undefined,
+    }
+  }
+  if (Array.isArray(raw)) {
+    const map: Record<string, string | undefined> = {}
+    for (const [key, value] of raw) {
+      map[key.toLowerCase()] = value
+    }
+    return map
+  }
+  const map: Record<string, string | undefined> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    map[key.toLowerCase()] = value
+  }
+  return map
+}
 
 function headerOrThrow(req: AuthRequest, name: string): string {
   const value = req.headers[name]

@@ -50,7 +50,7 @@ The Community Notes XRPC API accepts two client auth modes:
 | Mode | `Authorization` | Extra headers | How it is verified |
 |------|-----------------|---------------|--------------------|
 | Password session (existing) | `Bearer <accessJwt>` | — | PDS `com.atproto.server.getSession` |
-| OAuth (DPoP-bound) | `DPoP <access_token>` | `DPoP: <proof JWT>` | ATProto OAuth / RFC 9449 DPoP (jose), then issuer JWKS |
+| OAuth (DPoP-bound) | `DPoP <access_token>` | `DPoP: <proof JWT>` | RFC 9449 DPoP proof (always), then issuer JWKS; if JWKS is empty or the token is not RS-verifiable, the user's PDS `com.atproto.server.getSession` with the same DPoP headers. DID comes from verified JWKS claims or getSession, never from an unverified JWT alone. |
 
 `getProposals` and feed skeletons are anonymous when the header is omitted. A present but invalid header (including empty `Bearer`) is **401**. `propose` and `vote` always require a valid token.
 
