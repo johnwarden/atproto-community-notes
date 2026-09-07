@@ -1,8 +1,8 @@
 name: Deploy Notes Service to Fly.io
 
+# Manual only (Jonathan Fly-yes gate). Do not auto-deploy on merge to master.
 on:
-  push:
-    branches: [master]
+  workflow_dispatch:
 
 # Prevent concurrent deployments
 concurrency:
